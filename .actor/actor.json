@@ -1,0 +1,63 @@
+{
+    "actorSpecification": 1,
+    "name": "theharvester-osint",
+    "title": "theHarvester - OSINT Email & Subdomain Harvester",
+    "description": "Cloud-hosted theHarvester OSINT tool. Harvest emails, subdomains, IPs, URLs and ASNs from 54+ public sources (Shodan, Censys, crt.sh, VirusTotal, SecurityTrails, GitHub, hunter.io). Full CLI feature parity — DNS brute force, subdomain takeover, screenshots. $0.003 per record harvested.",
+    "version": "1.1",
+    "buildTag": "latest",
+    "categories": ["DEVELOPER_TOOLS", "AUTOMATION"],
+    "input": "./INPUT_SCHEMA.json",
+    "output": "./output_schema.json",
+    "dockerfile": "../Dockerfile",
+    "readme": "../README.md",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "theHarvester Results",
+            "views": {
+                "hosts": {
+                    "title": "Hosts (Subdomains)",
+                    "transformation": {
+                        "fields": ["host", "ip", "domain", "timestamp"]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "host": { "label": "Subdomain", "format": "text" },
+                            "ip": { "label": "IP", "format": "text" },
+                            "domain": { "label": "Target Domain", "format": "text" },
+                            "timestamp": { "label": "Found At", "format": "text" }
+                        }
+                    }
+                },
+                "emails": {
+                    "title": "Emails",
+                    "transformation": {
+                        "fields": ["email", "domain", "timestamp"]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "email": { "label": "Email", "format": "text" },
+                            "domain": { "label": "Target Domain", "format": "text" }
+                        }
+                    }
+                },
+                "summary": {
+                    "title": "Run Summary",
+                    "transformation": {
+                        "fields": ["recordType", "domain", "sources", "counts", "success", "apiKeysConfigured", "timestamp"]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "domain": { "label": "Domain", "format": "text" },
+                            "sources": { "label": "Sources", "format": "text" },
+                            "success": { "label": "Success", "format": "boolean" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

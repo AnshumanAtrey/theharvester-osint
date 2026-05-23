@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+test_unit.py
+test_local.py
+TESTING.md

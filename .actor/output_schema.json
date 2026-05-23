@@ -1,0 +1,20 @@
+{
+    "actorOutputSchemaVersion": 1,
+    "title": "theHarvester OSINT Output",
+    "description": "Harvested OSINT data — subdomains, emails, IPs, URLs, ASNs, Shodan enrichment, and person/name findings. Each finding is pushed as an individual dataset item with a `recordType` discriminator (host, email, ip, url, asn, shodan, person, or summary).",
+    "type": "object",
+    "properties": {
+        "harvestedRecords": {
+            "type": "string",
+            "title": "Harvested OSINT Records",
+            "description": "All harvested findings — subdomains (hosts), emails, IPs, URLs, ASNs, shodan entries, and persons. Filter the dataset by `recordType` to view a single category. The final item is always a `summary` record with aggregate counts and the executed command.",
+            "template": "{{links.apiDefaultDatasetUrl}}/items"
+        },
+        "screenshots": {
+            "type": "string",
+            "title": "Subdomain Screenshots",
+            "description": "Browser screenshots of discovered subdomains, captured when the `screenshot` input is enabled. Empty when screenshots were not requested.",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/keys"
+        }
+    }
+}

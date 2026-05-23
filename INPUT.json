@@ -1,0 +1,14 @@
+{
+  "domain": "example.com",
+  "sources": ["crtsh", "hackertarget", "rapiddns"],
+  "limit": 500,
+  "start": 0,
+  "dnsLookup": false,
+  "dnsBrute": false,
+  "shodan": false,
+  "takeOver": false,
+  "screenshot": false,
+  "apiScan": false,
+  "useProxies": false,
+  "quiet": false
+}

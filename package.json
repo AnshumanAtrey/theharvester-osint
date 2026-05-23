@@ -1,0 +1,11 @@
+{
+  "name": "theharvester-osint-actor",
+  "version": "1.0.0",
+  "description": "Complete theHarvester OSINT tool for Apify platform",
+  "main": "src/main.py",
+  "scripts": {
+    "start": "python3 -m src.main"
+  },
+  "author": "Apify",
+  "license": "Apache-2.0"
+}
