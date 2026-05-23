@@ -1,5 +1,8 @@
 # theHarvester OSINT Actor
 
+📦 **Open source · MIT:** [github.com/AnshumanAtrey/theharvester-osint](https://github.com/AnshumanAtrey/theharvester-osint)
+
+
 Wraps [laramies/theHarvester](https://github.com/laramies/theHarvester) — the OSINT tool used by penetration testers and red teams to gather **emails, subdomains, IPs, URLs, and ASNs** from public sources.
 
 This actor exposes the **full CLI surface** of theHarvester (16 flags, 54 data sources) as a structured Apify input. Results are pushed as individual dataset records (one per host/email/IP/etc) plus a summary row — perfect for tables, CSV export, or downstream pipelines.
