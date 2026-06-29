@@ -1,24 +1,26 @@
 {
-    "title": "theHarvester OSINT Configuration",
-    "description": "Configure theHarvester to gather emails, names, subdomains, IPs and URLs from public sources.",
+    "title": "Find emails & subdomains for a domain",
+    "description": "Enter a domain and we harvest its emails, subdomains, IPs, URLs and ASNs from 54+ public sources. Everything except the domain is optional.",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
         "domain": {
-            "title": "Target Domain",
+            "title": "Domain",
             "type": "string",
-            "description": "Domain to investigate (e.g., example.com, github.com). Required.",
+            "description": "The domain to investigate, for example itm.edu or github.com. Enter just the domain - we auto-clean full links, so https://www.itm.edu/ becomes itm.edu, and you can also enter an IP address. We then harvest its emails, subdomains, IPs, URLs and ASNs from public sources.",
             "editor": "textfield",
-            "example": "example.com",
+            "example": "itm.edu",
             "prefill": "example.com"
         },
         "sources": {
-            "title": "Data Sources",
+            "title": "Sources to search",
             "type": "array",
-            "description": "Pick which data sources to query. Defaults (crtsh, hackertarget, rapiddns, certspotter) are FREE and require no API key. Premium sources are marked with 🔑 — they need API keys (see below). Free public sources are marked with ✓.",
+            "description": "Which sources to search. The four defaults (crt.sh, HackerTarget, RapidDNS, CertSpotter) are free and need no API key. Sources marked with a key icon need an API key, which you add in the API keys section below. Sources marked with a tick are free.",
             "editor": "select",
             "default": ["crtsh", "hackertarget", "rapiddns", "certspotter"],
             "prefill": ["crtsh", "hackertarget", "rapiddns", "certspotter"],
+            "sectionCaption": "Search options",
+            "sectionDescription": "Which sources to search and how many results to pull. The defaults are free and need no API key.",
             "items": {
                 "type": "string",
                 "enum": [
@@ -48,389 +50,170 @@
             "minItems": 1
         },
         "limit": {
-            "title": "Results Limit",
+            "title": "Results per source",
             "type": "integer",
-            "description": "Maximum number of search results per source",
+            "description": "Maximum number of results to pull from each source. Default 500. Lower it for faster, cheaper runs; raise it for deeper coverage.",
             "editor": "number",
             "default": 500,
             "minimum": 1,
             "maximum": 10000
         },
         "start": {
-            "title": "Start Position",
+            "title": "Skip first N results",
             "type": "integer",
-            "description": "Skip the first N results (for pagination)",
+            "description": "Skip the first N results from each source. Used for paging through very large result sets. Leave at 0 for normal runs.",
             "editor": "number",
             "default": 0,
-            "minimum": 0
+            "minimum": 0,
+            "sectionCaption": "Advanced options",
+            "sectionDescription": "Extra recon features and tuning. The defaults are fine for most runs - you can leave this whole section alone."
         },
         "timeout": {
-            "title": "Subprocess Timeout (seconds)",
+            "title": "Time limit (seconds)",
             "type": "integer",
-            "description": "Hard kill theHarvester after this many seconds. Default 1800 (30 min).",
+            "description": "Stop the scan after this many seconds and return whatever was found by then. Default 1800 (30 minutes). Raise it for very large domains.",
             "editor": "number",
             "default": 1800,
             "minimum": 60,
             "maximum": 3600
         },
         "dnsLookup": {
-            "title": "Enable DNS Lookup",
+            "title": "Resolve subdomains to IPs",
             "type": "boolean",
-            "description": "Resolve discovered subdomains to IPs (-n flag)",
+            "description": "Resolve each discovered subdomain to its IP address. Slower, but adds the IP next to every subdomain.",
             "editor": "checkbox",
-            "default": false,
-            "sectionCaption": "DNS Options",
-            "sectionDescription": "Active DNS reconnaissance — slower but more thorough."
+            "default": false
         },
         "dnsBrute": {
-            "title": "DNS Brute Force",
+            "title": "Find hidden subdomains",
             "type": "boolean",
-            "description": "Brute-force common subdomains (-c flag). Slower but finds hidden subs.",
+            "description": "Find hidden subdomains by trying a list of common names like mail, dev, vpn and staging. Slower, but uncovers subdomains that are not in public records.",
             "editor": "checkbox",
             "default": false
         },
         "dnsResolve": {
-            "title": "DNS Resolve (resolver list path)",
+            "title": "Custom resolver list (path)",
             "type": "string",
-            "description": "Path to a custom resolver list (-r flag). Leave empty to use defaults.",
+            "description": "Path to your own list of DNS resolvers, for advanced users. Leave empty to use the built-in defaults.",
             "editor": "textfield"
         },
         "dnsServer": {
-            "title": "DNS Server",
+            "title": "Custom DNS server",
             "type": "string",
-            "description": "Custom DNS server IP for lookups (-e flag, e.g., 8.8.8.8)",
+            "description": "Use a specific DNS server for lookups, for example 8.8.8.8. Leave empty to use the defaults.",
             "editor": "textfield"
         },
         "shodan": {
-            "title": "Shodan Query",
+            "title": "Enrich hosts with Shodan",
             "type": "boolean",
-            "description": "Use Shodan to enrich discovered hosts (-s flag). Requires shodanApiKey.",
+            "description": "Enrich the discovered hosts with extra data from Shodan. Needs a Shodan API key in the API keys section below.",
             "editor": "checkbox",
-            "default": false,
-            "sectionCaption": "Active Reconnaissance",
-            "sectionDescription": "Active OSINT — may be detectable by the target."
+            "default": false
         },
         "takeOver": {
-            "title": "Check Subdomain Takeover",
+            "title": "Check for subdomain takeover",
             "type": "boolean",
-            "description": "Probe discovered subdomains for takeover signatures (-t flag).",
+            "description": "Check the discovered subdomains for takeover risk - subdomains whose DNS still points at an unclaimed third-party service that someone else could claim.",
             "editor": "checkbox",
             "default": false
         },
         "screenshot": {
-            "title": "Take Screenshots",
+            "title": "Screenshot each subdomain",
             "type": "boolean",
-            "description": "Capture screenshots of discovered subdomains (--screenshot flag). Saves to actor key-value store.",
+            "description": "Take a screenshot of each discovered subdomain's home page. Screenshots are saved to the run's storage.",
             "editor": "checkbox",
             "default": false
         },
         "apiScan": {
-            "title": "API Endpoint Scan",
+            "title": "Scan for exposed API endpoints",
             "type": "boolean",
-            "description": "Scan for exposed API endpoints (-a flag). Pair with wordlist for best results.",
+            "description": "Look for exposed or undocumented API endpoints on the domain. Works best together with a wordlist.",
             "editor": "checkbox",
             "default": false
         },
         "wordlist": {
-            "title": "Wordlist Path (cloud-limited)",
+            "title": "Wordlist (path)",
             "type": "string",
-            "description": "Path to a wordlist for API endpoint scanning (-w flag). Limited on Apify cloud — only files baked into the image work.",
+            "description": "Path to a wordlist used by the API endpoint scan. On Apify cloud, only wordlists already built into the image can be used.",
             "editor": "textfield"
         },
         "useProxies": {
-            "title": "Use Proxies",
+            "title": "Route through proxies",
             "type": "boolean",
-            "description": "Route requests through proxies (-p flag). Requires proxies.yaml in the image.",
+            "description": "Route requests through proxies. Needs a proxy list configured in the image, so most users leave this off.",
             "editor": "checkbox",
             "default": false
         },
         "quiet": {
-            "title": "Quiet Mode",
+            "title": "Hide missing-key warnings",
             "type": "boolean",
-            "description": "Suppress missing-API-key warnings (-q flag)",
+            "description": "Hide the missing API key warnings in the run log. On by default to keep the log clean.",
             "editor": "checkbox",
             "default": true
         },
         "shodanApiKey": {
-            "title": "Shodan API Key",
+            "title": "Shodan API key",
             "type": "string",
-            "description": "shodan.io account API key — required for the shodan source",
+            "description": "Your Shodan API key from shodan.io. Only needed if you select the Shodan source. Leave blank otherwise.",
             "editor": "textfield",
             "isSecret": true,
-            "sectionCaption": "API Keys — Premium Sources",
-            "sectionDescription": "Optional API keys to unlock premium data sources. All are isSecret. Missing keys just skip those sources."
+            "sectionCaption": "API keys (optional - skip unless you have accounts)",
+            "sectionDescription": "Most people leave every field here blank. The free default sources already return emails and subdomains. Add a key only for a source you have an account with. For the 30+ less common sources, use the last field (more API keys)."
         },
         "censysApiId": {
             "title": "Censys API ID",
             "type": "string",
-            "description": "censys.io API ID (paired with secret below)",
+            "description": "Your Censys API ID from censys.io. Pairs with the Censys API secret below.",
             "editor": "textfield",
             "isSecret": true
         },
         "censysApiSecret": {
-            "title": "Censys API Secret",
+            "title": "Censys API secret",
             "type": "string",
-            "description": "censys.io API secret",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "hunterApiKey": {
-            "title": "Hunter.io API Key",
-            "type": "string",
-            "description": "Hunter.io email-finder API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "hunterhowApiKey": {
-            "title": "HunterHow API Key",
-            "type": "string",
-            "description": "hunter.how API key",
+            "description": "Your Censys API secret from censys.io.",
             "editor": "textfield",
             "isSecret": true
         },
         "securitytrailsApiKey": {
-            "title": "SecurityTrails API Key",
+            "title": "SecurityTrails API key",
             "type": "string",
-            "description": "securitytrails.com API key — strong subdomain coverage",
+            "description": "Your SecurityTrails API key from securitytrails.com. Adds strong subdomain coverage.",
+            "editor": "textfield",
+            "isSecret": true
+        },
+        "hunterApiKey": {
+            "title": "Hunter.io API key",
+            "type": "string",
+            "description": "Your Hunter.io API key from hunter.io. Adds email discovery.",
             "editor": "textfield",
             "isSecret": true
         },
         "virustotalApiKey": {
-            "title": "VirusTotal API Key",
+            "title": "VirusTotal API key",
             "type": "string",
-            "description": "virustotal.com API key",
+            "description": "Your VirusTotal API key from virustotal.com.",
             "editor": "textfield",
             "isSecret": true
         },
         "githubToken": {
-            "title": "GitHub Personal Access Token",
+            "title": "GitHub token",
             "type": "string",
-            "description": "Required for github-code source (search public code for domain references)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "intelxApiKey": {
-            "title": "IntelX API Key",
-            "type": "string",
-            "description": "intelx.io API key for leaked-data search",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "onypheApiKey": {
-            "title": "Onyphe API Key",
-            "type": "string",
-            "description": "onyphe.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "fullhuntApiKey": {
-            "title": "FullHunt API Key",
-            "type": "string",
-            "description": "fullhunt.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "netlasApiKey": {
-            "title": "Netlas API Key",
-            "type": "string",
-            "description": "netlas.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "leakixApiKey": {
-            "title": "LeakIX API Key",
-            "type": "string",
-            "description": "leakix.net API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "leaklookupApiKey": {
-            "title": "LeakLookup API Key",
-            "type": "string",
-            "description": "leak-lookup.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "zoomeyeApiKey": {
-            "title": "ZoomEye API Key",
-            "type": "string",
-            "description": "zoomeye.org API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "bevigilApiKey": {
-            "title": "BeVigil API Key",
-            "type": "string",
-            "description": "bevigil.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "bitbucketApiKey": {
-            "title": "Bitbucket API Key",
-            "type": "string",
-            "description": "Atlassian Bitbucket API key (for bitbucket source)",
+            "description": "Your GitHub personal access token. Needed to search public code on GitHub for mentions of the domain.",
             "editor": "textfield",
             "isSecret": true
         },
         "braveApiKey": {
-            "title": "Brave Search API Key",
+            "title": "Brave Search API key",
             "type": "string",
-            "description": "Brave Search API key (free tier available)",
+            "description": "Your Brave Search API key from brave.com/search/api. A free tier is available.",
             "editor": "textfield",
             "isSecret": true
         },
-        "bufferoverunApiKey": {
-            "title": "BufferOverun API Key",
-            "type": "string",
-            "description": "tls.bufferover.run API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "builtwithApiKey": {
-            "title": "BuiltWith API Key",
-            "type": "string",
-            "description": "builtwith.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "chaosApiKey": {
-            "title": "ProjectDiscovery Chaos API Key",
-            "type": "string",
-            "description": "chaos.projectdiscovery.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "criminalipApiKey": {
-            "title": "CriminalIP API Key",
-            "type": "string",
-            "description": "criminalip.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "dehashedApiKey": {
-            "title": "DeHashed API Key",
-            "type": "string",
-            "description": "dehashed.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "dnsdumpsterApiKey": {
-            "title": "DNSDumpster API Key",
-            "type": "string",
-            "description": "dnsdumpster.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "dymoApiKey": {
-            "title": "Dymo API Key",
-            "type": "string",
-            "description": "Dymo source API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "fofaKey": {
-            "title": "FOFA API Key",
-            "type": "string",
-            "description": "fofa.info API key (paired with email below)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "fofaEmail": {
-            "title": "FOFA Email",
-            "type": "string",
-            "description": "fofa.info account email",
-            "editor": "textfield"
-        },
-        "hackertargetApiKey": {
-            "title": "HackerTarget API Key",
-            "type": "string",
-            "description": "hackertarget.com paid-tier API key (optional — free tier works without)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "hibpApiKey": {
-            "title": "HaveIBeenPwned API Key",
-            "type": "string",
-            "description": "haveibeenpwned.com API key — required for HIBP source",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "mojeekApiKey": {
-            "title": "Mojeek API Key",
-            "type": "string",
-            "description": "mojeek.com search API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "pentesttoolsApiKey": {
-            "title": "PentestTools API Key",
-            "type": "string",
-            "description": "pentest-tools.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "projectdiscoveryApiKey": {
-            "title": "ProjectDiscovery API Key",
-            "type": "string",
-            "description": "ProjectDiscovery API key (separate from chaos)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "rocketreachApiKey": {
-            "title": "RocketReach API Key",
-            "type": "string",
-            "description": "rocketreach.co API key (people/email enrichment)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "securityscorecardApiKey": {
-            "title": "SecurityScorecard API Key",
-            "type": "string",
-            "description": "securityscorecard.io API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "subdomainfinderc99ApiKey": {
-            "title": "SubdomainFinder C99 API Key",
-            "type": "string",
-            "description": "subdomainfinder.c99.nl API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "tombaKey": {
-            "title": "Tomba API Key",
-            "type": "string",
-            "description": "tomba.io email-finder API key (paired with secret)",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "tombaSecret": {
-            "title": "Tomba API Secret",
-            "type": "string",
-            "description": "tomba.io API secret",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "venacusApiKey": {
-            "title": "Venacus API Key",
-            "type": "string",
-            "description": "venacus.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "whoisxmlApiKey": {
-            "title": "WhoisXML API Key",
-            "type": "string",
-            "description": "whoisxmlapi.com API key",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "windvaneApiKey": {
-            "title": "Windvane API Key",
-            "type": "string",
-            "description": "Windvane API key",
-            "editor": "textfield",
-            "isSecret": true
+        "extraApiKeys": {
+            "title": "More API keys (advanced)",
+            "type": "object",
+            "description": "Keys for the other 30+ premium sources, as one JSON object. Use each provider's field name as the key, for example: {\"netlasApiKey\": \"...\", \"fofaKey\": \"...\", \"fofaEmail\": \"you@example.com\", \"intelxApiKey\": \"...\"}. Only needed for premium sources you selected that are not listed above. Supported names: hunterhowApiKey, intelxApiKey, onypheApiKey, fullhuntApiKey, netlasApiKey, leakixApiKey, leaklookupApiKey, zoomeyeApiKey, bevigilApiKey, bitbucketApiKey, bufferoverunApiKey, builtwithApiKey, chaosApiKey, criminalipApiKey, dehashedApiKey, dnsdumpsterApiKey, dymoApiKey, fofaKey, fofaEmail, hackertargetApiKey, hibpApiKey, mojeekApiKey, pentesttoolsApiKey, projectdiscoveryApiKey, rocketreachApiKey, securityscorecardApiKey, subdomainfinderc99ApiKey, tombaKey, tombaSecret, venacusApiKey, whoisxmlApiKey, windvaneApiKey.",
+            "editor": "json"
         }
     },
     "required": ["domain"]

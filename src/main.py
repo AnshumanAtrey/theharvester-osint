@@ -1,13 +1,14 @@
 """
-theHarvester OSINT Actor — wraps the laramies/theHarvester CLI with full feature parity.
+theHarvester OSINT Actor - wraps the laramies/theHarvester CLI with full feature parity.
 
 Output strategy:
 - Push 1 "summary" record with aggregate counts + the full structured payload (raw)
-- Push individual records for each host, email, IP, URL, ASN — billable per record + nicely paged in Apify Console
+- Push individual records for each host, email, IP, URL, ASN - billable per record + nicely paged in Apify Console
 """
 import asyncio
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -64,6 +65,40 @@ OUTPUT_PREFIX = '/tmp/theharvester_output'
 SCREENSHOT_DIR = '/tmp/screenshots'
 
 
+def clean_domain(raw: str) -> str:
+    """Normalize user-pasted input into a bare domain theHarvester can use.
+
+    Turns 'https://www.itm.edu/path' into 'itm.edu', pulls the domain out of an
+    email, and strips ports - so a pasted URL still returns full results instead
+    of a near-empty run. Real subdomains (sub.example.com) are preserved.
+    """
+    if not raw:
+        return raw
+    s = str(raw).strip().lower()
+    if '@' in s:                                    # email -> domain part
+        s = s.split('@', 1)[1]
+    s = re.sub(r'^[a-z][a-z0-9+.\-]*://', '', s)    # strip scheme (https:// etc.)
+    s = re.split(r'[/\s?#]', s, 1)[0]               # strip path / query / spaces
+    s = s.split(':', 1)[0]                          # strip port
+    if s.startswith('www.'):
+        s = s[4:]
+    return s.rstrip('.')
+
+
+def _is_ip(s: str) -> bool:
+    return bool(re.fullmatch(r'\d{1,3}(\.\d{1,3}){3}', s))
+
+
+def looks_like_domain(s: str) -> bool:
+    """True if s is a usable domain or IP. Rejects spaces, junk, and bare words."""
+    if not s:
+        return False
+    if _is_ip(s):
+        return True
+    return bool(re.fullmatch(
+        r'(?=.{1,253}$)([a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,}', s))
+
+
 def build_api_keys_file(input_data: dict) -> int:
     """Write ~/.theHarvester/api-keys.yaml from provided API keys. Returns count of services configured."""
     api_keys = {}
@@ -85,11 +120,11 @@ def build_api_keys_file(input_data: dict) -> int:
             yaml.dump({'apikeys': api_keys}, f, default_flow_style=False)
         Actor.log.info(f'Wrote api-keys.yaml with {len(api_keys)} services configured: {sorted(api_keys.keys())}')
     else:
-        # write an empty file so theHarvester doesn't warn — quieter logs
+        # write an empty file so theHarvester doesn't warn - quieter logs
         if not api_keys_path.exists():
             with open(api_keys_path, 'w') as f:
                 yaml.dump({'apikeys': {}}, f, default_flow_style=False)
-        Actor.log.info('No API keys provided — running with free sources only')
+        Actor.log.info('No API keys provided - running with free sources only')
 
     return len(api_keys)
 
@@ -99,7 +134,7 @@ def build_command(input_data: dict) -> list:
     domain = input_data['domain']
     cmd = ['theHarvester', '-d', domain]
 
-    sources = input_data.get('sources') or ['crtsh', 'hackertarget', 'rapiddns']
+    sources = input_data.get('sources') or ['crtsh', 'hackertarget', 'rapiddns', 'certspotter']
     if isinstance(sources, list):
         sources_str = ','.join(sources)
     else:
@@ -114,8 +149,6 @@ def build_command(input_data: dict) -> list:
 
     if input_data.get('dnsResolve'):
         cmd.extend(['-r', input_data['dnsResolve']])
-    elif input_data.get('dnsResolveAll'):
-        cmd.append('-r')  # -r with no arg = use default resolvers
 
     if input_data.get('dnsLookup'):
         cmd.append('-n')
@@ -255,12 +288,41 @@ async def main() -> None:
 
         input_data = await Actor.get_input() or {}
 
-        domain = input_data.get('domain')
-        if not domain:
-            await Actor.fail(status_message='Domain is required (e.g., example.com)')
+        raw_domain = input_data.get('domain')
+        if not raw_domain or not str(raw_domain).strip():
+            await Actor.fail(status_message='No domain given. Enter just the domain, e.g. itm.edu (not a full link).')
             return
 
+        # Auto-clean pasted input (URL, email, www, port) into a bare domain, then
+        # validate it. A pasted URL used to return ~1 result and still say "success";
+        # cleaning recovers the full run, validating stops wasted runs on junk input.
+        domain = clean_domain(raw_domain)
+        if not looks_like_domain(domain):
+            await Actor.fail(status_message=(
+                f'"{raw_domain}" does not look like a domain. Enter just the domain, '
+                f'e.g. itm.edu - no https://, no spaces, no path.'))
+            return
+        if domain != str(raw_domain).strip().lower():
+            Actor.log.info(f'Cleaned input "{raw_domain}" -> "{domain}"')
+        input_data['domain'] = domain   # use the cleaned value downstream
+
         Actor.log.info(f'Target domain: {domain}')
+
+        # Merge any extra/advanced API keys (single JSON box) into the flat input so
+        # the standard per-service mapping picks them up. Lets us keep only the common
+        # keys as named fields while still supporting all 40 providers via one box.
+        extra_keys = input_data.get('extraApiKeys')
+        if extra_keys:
+            if isinstance(extra_keys, str):
+                try:
+                    extra_keys = json.loads(extra_keys)
+                except json.JSONDecodeError:
+                    Actor.log.warning('extraApiKeys is not valid JSON - ignoring it')
+                    extra_keys = {}
+            if isinstance(extra_keys, dict):
+                for k, v in extra_keys.items():
+                    if v and not input_data.get(k):
+                        input_data[k] = v
 
         # Configure API keys
         api_key_count = build_api_keys_file(input_data)
@@ -288,7 +350,7 @@ async def main() -> None:
 
         Actor.log.info(f'theHarvester exit code: {result.returncode} (stdout {len(result.stdout or "")} chars, stderr {len(result.stderr or "")} chars)')
 
-        # Surface the last interesting lines of stdout — theHarvester prints its summary near the end
+        # Surface the last interesting lines of stdout - theHarvester prints its summary near the end
         if result.stdout:
             stdout_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
             for line in stdout_lines[-30:]:
@@ -304,6 +366,9 @@ async def main() -> None:
         json_path = f'{OUTPUT_PREFIX}.json'
         if not os.path.exists(json_path):
             Actor.log.error(f'No JSON output found at {json_path}')
+            await Actor.set_status_message(
+                f'No output produced for {domain}. The domain may be unreachable, or every '
+                f'selected source failed. Check the domain and try the free default sources.')
             await Actor.push_data({
                 'recordType': 'summary',
                 'domain': domain,
@@ -334,6 +399,21 @@ async def main() -> None:
 
         # Push individual records first (helps with Apify table view + billing)
         counts = await push_records(domain, sources_str, data)
+        total_findings = sum(counts.values())
+
+        # Tell the user clearly what happened. A 0-result run must NOT look identical
+        # to a good one - that silent-empty case is the #1 "it gave me nothing" churn.
+        if total_findings == 0:
+            note = (f'0 results for {domain}. Check the domain is spelled correctly and is a '
+                    f'real, public site. Try the root domain without "www", or add premium '
+                    f'sources / API keys for deeper coverage.')
+            Actor.log.warning(note)
+            await Actor.set_status_message(note)
+        else:
+            note = None
+            await Actor.set_status_message(
+                f'Found {total_findings} records for {domain}: '
+                f"{counts['hosts']} subdomains, {counts['emails']} emails, {counts['ips']} IPs.")
 
         # Push summary record last
         await Actor.push_data({
@@ -342,6 +422,8 @@ async def main() -> None:
             'sources': sources_str,
             'apiKeysConfigured': api_key_count,
             'success': True,
+            'foundAnything': total_findings > 0,
+            'message': note,
             'counts': counts,
             'cmd': data.get('cmd'),
             'timestamp': datetime.now(timezone.utc).isoformat(),

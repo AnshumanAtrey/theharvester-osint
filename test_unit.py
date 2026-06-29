@@ -14,7 +14,8 @@ sys.modules['apify'] = apify_stub
 
 # Now import the wrapper
 sys.path.insert(0, os.path.dirname(__file__))
-from src.main import build_command, parse_host_entry, build_api_keys_file, API_KEY_FIELDS, CONFIG_DIR
+from src.main import (build_command, parse_host_entry, build_api_keys_file,
+                      API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain)
 
 import yaml
 import shutil
@@ -23,9 +24,9 @@ print('=' * 60)
 print('TEST 1: build_command with minimal input')
 print('=' * 60)
 cmd, src = build_command({'domain': 'example.com'})
-assert cmd[:5] == ['python3', '-m', 'theHarvester', '-d', 'example.com'], cmd
+assert cmd[:3] == ['theHarvester', '-d', 'example.com'], cmd
 assert '-b' in cmd
-assert 'crtsh,hackertarget,rapiddns' in cmd  # default
+assert 'crtsh,hackertarget,rapiddns,certspotter' in cmd  # default (matches schema)
 print(f'  cmd: {cmd}')
 print(f'  sources: {src}')
 print('  ✓ OK')
@@ -141,6 +142,38 @@ print(f'  Missing (gaps):    {sorted(missing)}')
 print(f'  Extra (wrapper-only): {sorted(extra)}')
 assert not missing, f'API key coverage gap: {missing}'
 print('  ✓ Full API key coverage')
+
+print()
+print('=' * 60)
+print('TEST 6: clean_domain auto-cleans pasted input')
+print('=' * 60)
+clean_cases = {
+    'https://www.itm.edu/': 'itm.edu',
+    'http://example.com/path?q=1': 'example.com',
+    'www.example.com': 'example.com',
+    'example.com': 'example.com',
+    'EXAMPLE.COM': 'example.com',
+    'sub.example.com': 'sub.example.com',      # keep real subdomain
+    'jane.doe@example.com': 'example.com',      # email -> domain
+    'example.com:8080': 'example.com',          # strip port
+    '  example.com  ': 'example.com',
+    'https://x.co:443/a/b?x=1#frag': 'x.co',
+    '1.2.3.4': '1.2.3.4',                       # IP untouched
+}
+for raw, want in clean_cases.items():
+    got = clean_domain(raw)
+    assert got == want, f'clean_domain({raw!r}) -> {got!r}, expected {want!r}'
+print(f'  ✓ {len(clean_cases)} clean cases pass (URL/email/www/port/IP all handled)')
+
+print()
+print('=' * 60)
+print('TEST 7: looks_like_domain validation gate')
+print('=' * 60)
+for s in ['itm.edu', 'sub.example.com', 'example.co.uk', '1.2.3.4', 'xn--80ak6aa92e.com']:
+    assert looks_like_domain(s), f'should be valid: {s!r}'
+for s in ['foo bar baz', 'justtext', '', 'http://', '...', '@@@', 'example', 'a..b.com', ' ']:
+    assert not looks_like_domain(s), f'should be invalid: {s!r}'
+print('  ✓ Accepts domains + IPs, rejects spaces/junk/bare words')
 
 print()
 print('ALL UNIT TESTS PASS ✓')

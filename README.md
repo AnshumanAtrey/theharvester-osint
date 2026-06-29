@@ -1,34 +1,35 @@
-# theHarvester Cloud - Email + Subdomain OSINT
+# theHarvester Cloud - Email & Subdomain Finder
 
-Cloud-hosted theHarvester for domain reconnaissance - harvest emails, subdomains, IPs, URLs, and ASNs from 54+ public sources in one call.
+Find the emails and subdomains tied to any domain. We harvest emails, subdomains, IPs, URLs and ASNs from 54+ public sources in one call - cloud-hosted theHarvester, no install.
 
-Available as an [Apify Actor](https://apify.com/anshumanatrey/theharvester-osint). Pay-per-event. Free upstream tool, you only pay Apify compute and per-finding.
+Available as an [Apify Actor](https://apify.com/anshumanatrey/theharvester-osint). Pay only per record found. The upstream tool is free; you pay Apify compute plus a small per-record fee.
 
 ---
 
 ## What does it do?
 
-Takes a domain and harvests emails, subdomains, IPs, URLs, and ASNs from 54+ public OSINT sources in parallel: Shodan, Censys, crt.sh, VirusTotal, SecurityTrails, GitHub, Bing, DuckDuckGo, HackerTarget, ThreatCrowd, and more. Normalizes output across sources, returns structured per-finding dataset records ready for downstream OSINT correlation.
+Enter a domain and get back the emails and subdomains connected to it, plus IPs, URLs and ASNs, pulled from 54+ public sources in parallel: crt.sh, HackerTarget, RapidDNS, CertSpotter, Shodan, Censys, VirusTotal, SecurityTrails, GitHub, DuckDuckGo and more. We auto-clean the domain you paste (so a full URL still works), normalize the output across sources, and return one clean dataset row per finding - ready for a CRM, a spreadsheet, or an OSINT pipeline.
 
 ## How is it different from running theHarvester CLI locally?
 
 | | running theHarvester CLI locally | This actor |
 |---|---|---|
-| Setup | Python venv + pip + 12+ source API keys | Cloud, zero install, BYOK only where required |
-| Sources | 54 if all configured | 54 pre-wired in parallel |
-| Output | Text or JSON file per run | Structured per-finding dataset for pipelines |
+| Setup | Python venv + pip + source API keys | Open the page, type a domain, press start |
+| Sources | 54 if you configure each one | 54 pre-wired, 4 free ones on by default |
+| Input | Exact domain only, fails on a URL | Paste a URL or email, we auto-clean it |
+| Output | Text or JSON file per run | One clean row per finding, export to CSV or CRM |
 | Scheduling | Cron on a server | Apify scheduled runs + webhooks |
-| Cost | Free CLI but ops time | Pay-per-event, no minimum |
+| Cost | Free CLI but your setup time | Pay only per record found, no minimum |
 
 Wraps theHarvester by laramies (11,000+ GitHub stars, the canonical OSINT recon tool in PTES and OWASP Testing Guide).
 
 ## When should I use it?
 
-- Pentest reconnaissance - first-call attack-surface mapping for a target domain
-- Bug bounty - discover subdomains for in-scope target enumeration
-- Due diligence - profile a company's external footprint pre-acquisition
-- Threat intelligence - track which sources have indexed a target
-- Compliance - audit external-facing email addresses linked to a domain
+- Sales and lead gen - find the real email addresses behind a company domain
+- Recruiting - surface a company's people and contact addresses from its domain
+- Due diligence - profile a company's external footprint before a deal or partnership
+- Fraud and trust teams - map the subdomains and emails tied to a suspect site
+- Security and bug bounty - first-call attack-surface and subdomain mapping for a target
 
 ## What does it cost?
 
@@ -48,10 +49,10 @@ Pay-per-event:
 
 | Field | Required | What it does |
 |---|---|---|
-| `domain` | yes | Target domain to investigate |
-| `sources` | no | Comma-separated source list (default: all) |
-| `api_keys` | no | BYOK for Shodan, Censys, SecurityTrails, GitHub |
-| `limit` | no | Max results per source (default 500) |
+| `domain` | yes | The domain to investigate. Paste a full URL and we auto-clean it to the domain. |
+| `sources` | no | Which sources to search. Defaults to four free ones that need no key. |
+| `limit` | no | Max results per source. Default 500. |
+| `extraApiKeys` | no | Optional JSON box for premium-source keys. Common providers (Shodan, Censys, SecurityTrails, Hunter, VirusTotal, GitHub, Brave) also have their own named fields. |
 
 ## What does the output look like?
 
@@ -59,11 +60,12 @@ Each dataset record:
 
 ```json
 {
-  "type": "subdomain",
-  "value": "api.example.com",
-  "source": "crt.sh",
-  "discovered_at": "2026-05-29T14:00:00Z",
-  "confidence": "high"
+  "recordType": "host",
+  "domain": "example.com",
+  "host": "api.example.com",
+  "ip": "93.184.216.34",
+  "raw": "api.example.com:93.184.216.34",
+  "timestamp": "2026-06-29T14:00:00Z"
 }
 ```
 
@@ -71,9 +73,13 @@ Each dataset record:
 
 **Q: Does this scan actively?** No. theHarvester is purely passive - it queries public data sources. Active scanning (DNS bruteforce, port scans) requires sibling actors `nmap-scanner` or active-mode tools.
 
-**Q: Which sources require API keys?** Shodan, Censys, SecurityTrails, GitHub. BYOK supported - paste keys in the input. Other 50+ sources work without keys.
+**Q: Which sources require API keys?** The four defaults (crt.sh, HackerTarget, RapidDNS, CertSpotter) and 15+ other public sources are free. Premium sources like Shodan, Censys, SecurityTrails and Hunter need your own API key, added in the API keys section.
 
 **Q: Source missing?** DM LinkedIn (linkedin.com/in/anshumanatrey). Custom source additions ship within 1-2 hours.
+
+**Q: My run found nothing - why?** First check the domain is spelled correctly and is a real, public site. Enter just the domain (we auto-clean full URLs). Some domains simply have a small public footprint; selecting premium sources and adding their API keys widens coverage.
+
+**Q: Do I enter a full URL or just the domain?** Just the domain, like itm.edu. If you paste a full link such as https://www.itm.edu/, we clean it to itm.edu automatically so the run still works.
 
 ---
 
