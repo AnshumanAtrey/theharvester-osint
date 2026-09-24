@@ -6,8 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     && rm -rf /var/lib/apt/lists/*
 
-# Install theHarvester from upstream master (uses pyproject.toml — old requirements/base.txt is gone)
-RUN pip install --no-cache-dir git+https://github.com/laramies/theHarvester.git
+# Install theHarvester pinned to a release: upstream master moved to requires-python>=3.14 (2026-09),
+# which the 3.13 base image cannot satisfy, and unpinned master broke the build silently.
+RUN pip install --no-cache-dir git+https://github.com/laramies/theHarvester.git@4.11.1
 
 # Create config dir where theHarvester expects api-keys.yaml + proxies.yaml
 RUN mkdir -p /root/.theHarvester
