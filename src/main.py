@@ -580,7 +580,9 @@ async def main() -> None:
             # Nothing was pushed, so a bad input costs the user $0.
             await Actor.fail(status_message=str(e))
             return
-        input_data['timeout'] = fit_timeout(input_data['timeout'], notes)
+        # The platform fills the 1800s default into every input, and the default run limit is
+        # also 1800s, so fitting the default is routine and silent; a user-chosen limit gets a note.
+        input_data['timeout'] = fit_timeout(input_data['timeout'], notes if input_data['timeout'] != 1800 else [])
         for note in notes:
             Actor.log.warning(f'Input note: {note}')
         domain = input_data['domain']

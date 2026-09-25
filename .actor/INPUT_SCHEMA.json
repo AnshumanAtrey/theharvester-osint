@@ -155,8 +155,6 @@
             "type": "integer",
             "editor": "number",
             "default": 500,
-            "minimum": 1,
-            "maximum": 10000,
             "unit": "results",
             "description": "Enter how many results to pull from each source, 1 to 10000. Default 500. Lower is faster; higher digs deeper. Out-of-range values are brought into range with a note. Same as -l in theHarvester."
         },
@@ -282,8 +280,6 @@
             "type": "integer",
             "editor": "number",
             "default": 1800,
-            "minimum": 60,
-            "maximum": 3600,
             "unit": "seconds",
             "sectionCaption": "Technical settings",
             "sectionDescription": "For advanced users. The defaults suit almost every run.",
@@ -294,9 +290,8 @@
             "type": "integer",
             "editor": "number",
             "default": 0,
-            "minimum": 0,
             "unit": "results",
-            "description": "Enter how many results to skip from each source, for paging through very large result sets. Default 0 (skip none). Same as -S in theHarvester."
+            "description": "Enter how many results to skip from each source, for paging through very large result sets. Default 0 (skip none). Negative values are read as 0 with a note. Same as -S in theHarvester."
         },
         "dnsServer": {
             "title": "Lookup server (dnsServer)",
