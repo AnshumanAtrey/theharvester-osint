@@ -1,0 +1,99 @@
+# Keep theHarvester current without ever shipping a broken build.
+#
+# Weekly (and on demand): scripts/update-theharvester.mjs moves the Dockerfile
+# pin to the latest upstream release and, if that release needs a newer Python,
+# to the matching apify/actor-python base image. Both the current and the
+# candidate image are built here on the runner and run on the same live lookup
+# (scripts/smoke-test.sh). The candidate ships only if it produced hosts and at
+# least 80% of what the current image found in the same minute (free sources
+# are flaky, so the comparison is relative, never a fixed number). Shipping =
+# commit to main + dispatch the deploy workflow. Otherwise production stays on
+# the old pin and an issue says why.
+#
+# Pushes made with GITHUB_TOKEN do not trigger other workflows, so the deploy
+# is started explicitly with `gh workflow run` (workflow_dispatch is exempt).
+
+name: Track theHarvester releases
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'theHarvester tag, branch or commit to try (default: latest release)'
+        required: false
+      dry_run:
+        description: 'Build and smoke-test only; never commit, deploy or open an issue'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+concurrency:
+  group: theharvester-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick target version
+        id: bump
+        env:
+          REF: ${{ inputs.ref }}
+        run: node scripts/update-theharvester.mjs
+
+      - name: Build current and candidate images
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git show HEAD:Dockerfile > Dockerfile.current
+          docker build -q -f Dockerfile.current -t harvester:current .
+          docker build -q -t harvester:candidate .
+          rm Dockerfile.current
+
+      - name: Smoke-test both on the same lookup
+        id: smoke
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          chmod +x scripts/smoke-test.sh
+          current=$(scripts/smoke-test.sh harvester:current || echo 0)
+          candidate=$(scripts/smoke-test.sh harvester:candidate || echo -1)
+          echo "current=$current candidate=$candidate"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+          if [ "$candidate" -gt 0 ] && [ $((candidate * 5)) -ge $((current * 4)) ]; then
+            echo "pass=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pass=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ship
+        if: steps.smoke.outputs.pass == 'true' && !inputs.dry_run
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898299+github-actions[bot]@users.noreply.github.com'
+          git commit -am "chore: theHarvester ${{ steps.bump.outputs.current_ref }} -> ${{ steps.bump.outputs.ref }}, Python ${{ steps.bump.outputs.current_python }} -> ${{ steps.bump.outputs.python }}
+
+          Smoke test on tesla.com: ${{ steps.smoke.outputs.candidate }} hosts vs ${{ steps.smoke.outputs.current }} on the current image."
+          git push
+          gh workflow run apify-deploy.yml --ref main
+
+      - name: Report a failed update
+        if: failure() || (steps.smoke.outputs.pass == 'false' && !inputs.dry_run)
+        run: |
+          title="theHarvester auto-update blocked"
+          body="Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Target: ${{ steps.bump.outputs.ref || 'unknown' }} (requires-python ${{ steps.bump.outputs.spec || '?' }}, base image ${{ steps.bump.outputs.python || '?' }})
+          Smoke test: candidate ${{ steps.smoke.outputs.candidate || 'n/a' }} hosts vs current ${{ steps.smoke.outputs.current || 'n/a' }}.
+          Production is unchanged and still on ${{ steps.bump.outputs.current_ref || 'the old pin' }}."
+          [ "${{ inputs.dry_run }}" = "true" ] && { echo "$body"; exit 0; }
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$n" ]; then gh issue comment "$n" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
