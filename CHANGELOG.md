@@ -8,6 +8,8 @@
 - A long search could be cut off by the run's own time limit with nothing returned; the search now always stops a minute early so results are saved.
 
 ### Added
+- Nothing theHarvester finds is dropped any more: vhosts, trello_urls, twitter_people, linkedin_people, linkedin_links and takeover_results (plus any key a later release adds) are rows under theHarvester's own names. Before, the takeover check's results were thrown away.
+- theHarvester's own output saved unchanged to the key-value store: full console output (the only place API-scan results appear), report.json, report.xml, and screenshots, which were taken but never saved before.
 - Every input is checked and soft-fixed with a plain note (log, status message, summary `inputNotes`): numbers or yes/no as text, out-of-range numbers, source names in any form ("crt.sh", "VirusTotal"), unknown sources, typos in field names, invalid lookup server, missing word list, Shodan details without a key. Only a missing or unusable website stops the run, at $0.
 - The website can also be given as `url`, `website`, `domains`, `target` or `email`; with several, the first is used.
 - Source list is read from the installed theHarvester at run start, so an upstream rename never breaks a run. Added SherlockEye; DNSDumpster and Mojeek now correctly marked as needing a key, Shodan InternetDB as free.

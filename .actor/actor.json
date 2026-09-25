@@ -154,7 +154,7 @@
                             "string",
                             "null"
                         ],
-                        "description": "What this row is: host (subdomain), email, ip, url, asn, shodan, person, or summary (one per run, last).",
+                        "description": "What this row is: host (subdomain), email, ip, url, asn, shodan, person, summary (one per run, last), or any other theHarvester result under its own name: vhosts, trello_urls, twitter_people, linkedin_people, linkedin_links, takeover_results.",
                         "example": "host"
                     },
                     "domain": {
@@ -360,6 +360,44 @@
                         ],
                         "description": "theHarvester's exit code when it produced no output. Summary row only.",
                         "example": null
+                    },
+                    "value": {
+                        "title": "Result (value)",
+                        "type": [
+                            "string",
+                            "object",
+                            "array",
+                            "number",
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "The finding itself for results theHarvester reports beyond hosts/emails/IPs, e.g. a vhost, a LinkedIn profile, or the service a takeover-prone subdomain points to.",
+                        "example": "github-pages"
+                    },
+                    "key": {
+                        "title": "Found for (key)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "For results theHarvester reports as a mapping (takeover_results), the subdomain the value belongs to.",
+                        "example": "old.tesla.com"
+                    },
+                    "files": {
+                        "title": "Saved files (files)",
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Key-value store records saved as-is from theHarvester: its full console output (includes API-scan results), JSON/XML reports, screenshots. Summary row only.",
+                        "example": [
+                            "theharvester-output.txt",
+                            "report.json",
+                            "report.xml"
+                        ]
                     }
                 }
             }

@@ -9,6 +9,9 @@ class _ActorLog:
     def error(self, m): print(f'[ERROR] {m}')
 class _Actor:
     log = _ActorLog()
+    rows, kv = [], {}
+    async def push_data(self, row): self.rows.append(row)
+    async def set_value(self, key, value, content_type=None): self.kv[key] = (value, content_type)
 apify_stub.Actor = _Actor()
 sys.modules['apify'] = apify_stub
 
@@ -17,7 +20,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from src.main import (build_command, parse_host_entry, build_api_keys_file,
                       API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain,
                       resolve_hosts, default_api_keys, normalize_input, InputError,
-                      key_sources, fit_timeout)
+                      key_sources, fit_timeout, push_records, save_files, OUTPUT_PREFIX, SCREENSHOT_DIR)
 
 import yaml
 import shutil
@@ -262,6 +265,36 @@ assert fit_timeout(120, []) == 120
 del os.environ['ACTOR_TIMEOUT_AT']
 assert fit_timeout(1800, []) == 1800
 print(f'  ✓ 1800s lowered to {t}s with 10 min of run left; untouched when it fits or no deadline')
+
+print()
+print('=' * 60)
+print('TEST 11: every theHarvester result is passed through, files saved as-is')
+print('=' * 60)
+import asyncio, pathlib
+A = apify_stub.Actor
+data = {'cmd': '-d x.com', 'hosts': ['localhost'], 'emails': ['a@x.com'], 'shodan': [],
+        'vhosts': ['v.x.com'], 'trello_urls': ['https://trello.com/b/1'], 'twitter_people': ['@x'],
+        'linkedin_people': ['Jane'], 'linkedin_links': ['https://linkedin.com/in/j'],
+        'takeover_results': {'old.x.com': 'github-pages'}, 'future_key': ['something new']}
+counts = asyncio.run(push_records('x.com', 'crtsh', data))
+kinds = [r['recordType'] for r in A.rows]
+for k in ['host', 'email', 'vhosts', 'trello_urls', 'twitter_people', 'linkedin_people', 'linkedin_links', 'takeover_results', 'future_key']:
+    assert k in kinds, (k, kinds)
+take = next(r for r in A.rows if r['recordType'] == 'takeover_results')
+assert take['key'] == 'old.x.com' and take['value'] == 'github-pages', take
+assert counts['takeover_results'] == 1 and counts['future_key'] == 1 and 'cmd' not in kinds
+print(f'  ✓ {len(A.rows)} rows, recordTypes: {sorted(set(kinds))}')
+
+pathlib.Path(OUTPUT_PREFIX + '.json').write_text('{}'); pathlib.Path(OUTPUT_PREFIX + '.xml').write_text('<x/>')
+os.makedirs(SCREENSHOT_DIR, exist_ok=True); pathlib.Path(SCREENSHOT_DIR, 'v.x.com.png').write_bytes(b'png')
+try:
+    keys = asyncio.run(save_files('[*] API Endpoints found: 1\n    - /api'))
+    assert keys == ['theharvester-output.txt', 'report.json', 'report.xml', 'screenshot-v.x.com.png'], keys
+    assert A.kv['report.xml'][1] == 'application/xml' and A.kv['screenshot-v.x.com.png'][1] == 'image/png'
+    print(f'  ✓ saved {keys}')
+finally:
+    for f in [OUTPUT_PREFIX + '.json', OUTPUT_PREFIX + '.xml']: pathlib.Path(f).unlink(missing_ok=True)
+    shutil.rmtree(SCREENSHOT_DIR, ignore_errors=True)
 
 print()
 print('ALL UNIT TESTS PASS ✓')

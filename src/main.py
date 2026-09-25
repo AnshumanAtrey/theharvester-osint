@@ -63,6 +63,8 @@ API_KEY_FIELDS = {
 CONFIG_DIR = Path(os.path.expanduser('~/.theHarvester'))
 OUTPUT_PREFIX = '/tmp/theharvester_output'
 SCREENSHOT_DIR = '/tmp/screenshots'
+# JSON keys push_records() turns into typed rows; every other key is passed through as-is.
+HANDLED_KEYS = {'cmd', 'hosts', 'emails', 'ips', 'interesting_urls', 'asns', 'shodan', 'people'}
 
 
 def clean_domain(raw: str) -> str:
@@ -565,7 +567,46 @@ async def push_records(domain: str, sources_str: str, data: dict) -> dict:
         })
         counts['people'] += 1
 
+    # Everything else theHarvester reports (vhosts, trello_urls, twitter_people, linkedin_people,
+    # linkedin_links, takeover_results, and any key a later release adds), passed through under
+    # theHarvester's own key name so nothing it finds is dropped.
+    for key, value in data.items():
+        if key in HANDLED_KEYS or value in (None, [], {}, ''):
+            continue
+        entries = value.items() if isinstance(value, dict) else ((None, v) for v in (value if isinstance(value, list) else [value]))
+        for sub_key, item in entries:
+            row = {'recordType': key, 'domain': domain, 'value': item, 'timestamp': timestamp}
+            if sub_key is not None:
+                row['key'] = sub_key
+            await Actor.push_data(row)
+            counts[key] = counts.get(key, 0) + 1
+
     return counts
+
+
+async def save_files(stdout: str) -> list[str]:
+    """Save theHarvester's own output, unchanged, to the key-value store.
+
+    Its full console output (the only place API-scan results appear), its JSON/XML
+    reports, and any screenshots. Returns the saved keys. Never fails the run.
+    """
+    saved = []
+    async def put(key: str, value, content_type: str) -> None:
+        try:
+            await Actor.set_value(key, value, content_type=content_type)
+            saved.append(key)
+        except Exception as e:
+            Actor.log.warning(f'Could not save {key}: {e}')
+    if stdout:
+        await put('theharvester-output.txt', stdout, 'text/plain')
+    types = {'.json': 'application/json', '.xml': 'application/xml', '.jsonl': 'application/x-ndjson'}
+    for path in sorted(Path(OUTPUT_PREFIX).parent.glob(Path(OUTPUT_PREFIX).name + '.*')):
+        await put(f'report{path.suffix}', path.read_bytes(), types.get(path.suffix, 'application/octet-stream'))
+    for path in sorted(Path(SCREENSHOT_DIR).glob('**/*')) if os.path.isdir(SCREENSHOT_DIR) else []:
+        if path.is_file():
+            name = re.sub(r"[^a-zA-Z0-9!\-_.'()]", '_', path.name)[:200]
+            await put(f'screenshot-{name}', path.read_bytes(), 'image/png' if path.suffix == '.png' else 'application/octet-stream')
+    return saved
 
 
 async def main() -> None:
@@ -616,6 +657,8 @@ async def main() -> None:
 
         Actor.log.info(f'theHarvester exit code: {result.returncode} (stdout {len(result.stdout or "")} chars, stderr {len(result.stderr or "")} chars)')
 
+        files = await save_files(result.stdout or '')
+
         # Surface the last interesting lines of stdout - theHarvester prints its summary near the end
         if result.stdout:
             stdout_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
@@ -641,6 +684,7 @@ async def main() -> None:
                 'sources': sources_str,
                 'apiKeysConfigured': api_key_count,
                 'inputNotes': notes,
+                'files': files,
                 'success': False,
                 'error': 'theHarvester produced no JSON output',
                 'exitCode': result.returncode,
@@ -659,6 +703,7 @@ async def main() -> None:
                 'sources': sources_str,
                 'apiKeysConfigured': api_key_count,
                 'inputNotes': notes,
+                'files': files,
                 'success': False,
                 'error': f'JSON parse failed: {e}',
                 'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -698,6 +743,7 @@ async def main() -> None:
             'success': True,
             'foundAnything': total_findings > 0,
             'inputNotes': notes,
+            'files': files,
             'message': note,
             'counts': counts,
             'cmd': data.get('cmd'),

@@ -1,7 +1,7 @@
 {
     "actorOutputSchemaVersion": 1,
     "title": "theHarvester results",
-    "description": "Every finding is one row with a recordType: host (subdomain), email, ip, url, asn, shodan, person, and one summary row at the end with totals and input notes.",
+    "description": "Every finding is one row with a recordType (host, email, ip, url, asn, shodan, person, or any other theHarvester result under its own name), plus one summary row at the end. theHarvester's own reports and console output are saved unchanged as files.",
     "type": "object",
     "properties": {
         "results": {
@@ -10,10 +10,10 @@
             "description": "Every row the run found. Use the Subdomains, Emails and Run summary views, or filter by recordType.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         },
-        "screenshots": {
+        "files": {
             "type": "string",
-            "title": "Page screenshots (screenshots)",
-            "description": "Screenshots of each subdomain's home page, saved when Page screenshots is on. Empty otherwise.",
+            "title": "Report files (files)",
+            "description": "theHarvester's own output saved as-is: full console output (theharvester-output.txt, which includes API-scan results), its JSON and XML reports, and page screenshots when turned on.",
             "template": "{{links.apiDefaultKeyValueStoreUrl}}/keys"
         }
     }

@@ -76,6 +76,8 @@ Each dataset record:
 }
 ```
 
+Everything theHarvester reports comes through. Besides hosts, emails, IPs, URLs, ASNs, Shodan and people, any other result it finds (vhosts, Trello links, Twitter and LinkedIn people, LinkedIn links, takeover results) is a row under theHarvester's own name, with the finding in `value`. theHarvester's own files are saved unchanged in the run's key-value store: `theharvester-output.txt` (its full console output, which is where API-scan results appear), `report.json`, `report.xml`, and screenshots when turned on.
+
 `resolves` tells you whether the subdomain answers in public DNS right now. Certificate logs also list retired and internal-only names; those come back with `resolves: false`. They are still useful for mapping a company's naming and history, and you can filter them out for a live-only list. The summary record's `counts.liveHosts` gives the total.
 
 ## Common questions
