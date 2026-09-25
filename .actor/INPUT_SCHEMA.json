@@ -186,7 +186,7 @@
             "type": "boolean",
             "editor": "checkbox",
             "default": false,
-            "description": "Turn on to take page screenshots of each subdomain's home page. Saved to the run's key-value store. Slower. Off by default. Same as --screenshot in theHarvester."
+            "description": "Turn on to take page screenshots of each subdomain's home page. Saved to the run's key-value store. Slower. Works best with Find IP addresses off. Off by default. Same as --screenshot in theHarvester."
         },
         "shodan": {
             "title": "Add Shodan details (shodan)",
@@ -200,7 +200,7 @@
             "type": "boolean",
             "editor": "checkbox",
             "default": false,
-            "description": "Turn on to find exposed endpoints: API paths left open on the website. Works best with a word list file. Off by default. Same as -a (API scan) in theHarvester."
+            "description": "Turn on to find exposed endpoints: API paths left open on the website. Slow: it tries about 900 paths and can take 10+ minutes, so raise Time limit; if it runs out of time, everything found before the scan is still returned. Off by default. Same as -a (API scan) in theHarvester."
         },
         "shodanApiKey": {
             "title": "Shodan key (shodanApiKey)",

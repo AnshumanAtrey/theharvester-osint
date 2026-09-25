@@ -5,6 +5,8 @@
 ### Fixed
 - HackerTarget, one of the four default free sources, returned nothing on every run: the key file the actor wrote left out its entry. The key file now starts from theHarvester's own and adds your keys.
 - `chaosApiKey` was written where theHarvester never reads it; it now fills the ProjectDiscovery key that the Chaos source uses.
+- Screenshots never worked: theHarvester takes them with Playwright's own browser, which was never installed in the image (a system Chromium was, which Playwright doesn't use). The image now installs Playwright's browser.
+- A run that hit its time limit returned nothing; theHarvester's status lines now stream to the log as it runs, the output so far is saved, and results already written (the results file is saved before the slow API scan) are delivered with a note.
 - A long search could be cut off by the run's own time limit with nothing returned; the search now always stops a minute early so results are saved.
 
 ### Added
