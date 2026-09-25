@@ -193,6 +193,29 @@ def parse_host_entry(entry: str) -> dict:
     return {'host': entry.strip(), 'ip': None}
 
 
+async def resolve_hosts(hosts: list[str], timeout: float = 3.0, concurrency: int = 50) -> dict[str, bool]:
+    """Map each hostname to whether it resolves in public DNS right now.
+
+    Certificate-transparency sources return many retired or internal-only names;
+    this lets users tell live subdomains from historical ones. Cost is a few
+    seconds for hundreds of hosts.
+    """
+    loop = asyncio.get_running_loop()
+    sem = asyncio.Semaphore(concurrency)
+
+    async def check(host: str) -> bool:
+        async with sem:
+            try:
+                await asyncio.wait_for(loop.getaddrinfo(host, None), timeout)
+                return True
+            except (OSError, asyncio.TimeoutError, UnicodeError):
+                return False
+
+    unique = sorted(set(hosts))
+    results = await asyncio.gather(*(check(h) for h in unique))
+    return dict(zip(unique, results))
+
+
 async def push_records(domain: str, sources_str: str, data: dict) -> dict:
     """Push individual + summary records to Apify dataset. Returns counts."""
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -204,20 +227,25 @@ async def push_records(domain: str, sources_str: str, data: dict) -> dict:
         'asns': 0,
         'shodan': 0,
         'people': 0,
+        'liveHosts': 0,
     }
 
-    # Hosts (parsed)
-    for entry in data.get('hosts', []) or []:
-        parsed = parse_host_entry(entry)
+    # Hosts (parsed), each tagged with whether it resolves in DNS now
+    host_entries = [(entry, parse_host_entry(entry)) for entry in data.get('hosts', []) or []]
+    live = await resolve_hosts([p['host'] for _, p in host_entries])
+    for entry, parsed in host_entries:
+        resolves = live.get(parsed['host'], False)
         await Actor.push_data({
             'recordType': 'host',
             'domain': domain,
             'host': parsed['host'],
             'ip': parsed['ip'],
+            'resolves': resolves,
             'raw': entry,
             'timestamp': timestamp,
         })
         counts['hosts'] += 1
+        counts['liveHosts'] += resolves
 
     # Emails
     for email in data.get('emails', []) or []:
@@ -399,7 +427,7 @@ async def main() -> None:
 
         # Push individual records first (helps with Apify table view + billing)
         counts = await push_records(domain, sources_str, data)
-        total_findings = sum(counts.values())
+        total_findings = sum(v for k, v in counts.items() if k != 'liveHosts')  # liveHosts is a subset of hosts
 
         # Tell the user clearly what happened. A 0-result run must NOT look identical
         # to a good one - that silent-empty case is the #1 "it gave me nothing" churn.
@@ -413,7 +441,8 @@ async def main() -> None:
             note = None
             await Actor.set_status_message(
                 f'Found {total_findings} records for {domain}: '
-                f"{counts['hosts']} subdomains, {counts['emails']} emails, {counts['ips']} IPs.")
+                f"{counts['hosts']} subdomains ({counts['liveHosts']} live in DNS), "
+                f"{counts['emails']} emails, {counts['ips']} IPs.")
 
         # Push summary record last
         await Actor.push_data({

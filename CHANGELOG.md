@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2] - 2026-09-25
+
+### Added
+- `resolves` on every host record: whether the subdomain answers in public DNS right now. Certificate logs also return retired and internal-only names; this lets users filter to live subdomains. The summary record adds `counts.liveHosts`, and the status message shows the live count.
+
+### Changed
+- theHarvester is pinned to a release (4.11.1) and moved forward by a weekly workflow that adapts the Python base image and ships only after a side-by-side smoke test.
+
 ## [1.1.1] - 2026-06-29
 
 ### Added

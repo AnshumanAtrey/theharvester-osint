@@ -64,10 +64,13 @@ Each dataset record:
   "domain": "example.com",
   "host": "api.example.com",
   "ip": "93.184.216.34",
+  "resolves": true,
   "raw": "api.example.com:93.184.216.34",
   "timestamp": "2026-06-29T14:00:00Z"
 }
 ```
+
+`resolves` tells you whether the subdomain answers in public DNS right now. Certificate logs also list retired and internal-only names; those come back with `resolves: false`. They are still useful for mapping a company's naming and history, and you can filter them out for a live-only list. The summary record's `counts.liveHosts` gives the total.
 
 ## Common questions
 

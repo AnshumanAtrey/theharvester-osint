@@ -15,7 +15,8 @@ sys.modules['apify'] = apify_stub
 # Now import the wrapper
 sys.path.insert(0, os.path.dirname(__file__))
 from src.main import (build_command, parse_host_entry, build_api_keys_file,
-                      API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain)
+                      API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain,
+                      resolve_hosts)
 
 import yaml
 import shutil
@@ -174,6 +175,16 @@ for s in ['itm.edu', 'sub.example.com', 'example.co.uk', '1.2.3.4', 'xn--80ak6aa
 for s in ['foo bar baz', 'justtext', '', 'http://', '...', '@@@', 'example', 'a..b.com', ' ']:
     assert not looks_like_domain(s), f'should be invalid: {s!r}'
 print('  ✓ Accepts domains + IPs, rejects spaces/junk/bare words')
+
+print()
+print('=' * 60)
+print('TEST 8: resolve_hosts tags live vs dead names')
+print('=' * 60)
+import asyncio
+got = asyncio.run(resolve_hosts(['localhost', 'no-such-host.invalid', 'localhost', 'bad..name']))
+assert got == {'localhost': True, 'no-such-host.invalid': False, 'bad..name': False}, got
+print(f'  {got}')
+print('  ✓ Live name True, unresolvable/malformed False, duplicates collapsed')
 
 print()
 print('ALL UNIT TESTS PASS ✓')

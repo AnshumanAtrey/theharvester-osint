@@ -18,13 +18,14 @@
                 "hosts": {
                     "title": "Hosts (Subdomains)",
                     "transformation": {
-                        "fields": ["host", "ip", "domain", "timestamp"]
+                        "fields": ["host", "ip", "resolves", "domain", "timestamp"]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
                             "host": { "label": "Subdomain", "format": "text" },
                             "ip": { "label": "IP", "format": "text" },
+                            "resolves": { "label": "Live in DNS", "format": "boolean" },
                             "domain": { "label": "Target Domain", "format": "text" },
                             "timestamp": { "label": "Found At", "format": "text" }
                         }
