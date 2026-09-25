@@ -584,6 +584,33 @@ async def push_records(domain: str, sources_str: str, data: dict) -> dict:
     return counts
 
 
+async def run_theharvester(cmd: list[str], timeout: int) -> tuple[str, int | None, bool]:
+    """Run theHarvester, streaming its status lines to the log as they happen.
+
+    Returns (full output, exit code, timed_out). On timeout the process is killed
+    and everything it printed so far is still returned, so the caller can save it
+    and use any results file already written.
+    """
+    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    lines: list[str] = []
+
+    async def pump() -> None:
+        async for raw in proc.stdout:
+            line = raw.decode(errors='replace').rstrip()
+            lines.append(line)
+            if line.lstrip().startswith(('[*]', '[!]', '[-]', '[+]', '***')):
+                Actor.log.info(f'theHarvester: {line.strip()[:300]}')
+
+    timed_out = False
+    try:
+        await asyncio.wait_for(asyncio.gather(pump(), proc.wait()), timeout)
+    except asyncio.TimeoutError:
+        timed_out = True
+        proc.kill()
+        await proc.wait()
+    return '\n'.join(lines), proc.returncode, timed_out
+
+
 async def save_files(stdout: str) -> list[str]:
     """Save theHarvester's own output, unchanged, to the key-value store.
 
@@ -640,36 +667,25 @@ async def main() -> None:
         timeout = input_data['timeout']
 
         try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
-        except subprocess.TimeoutExpired:
-            await Actor.fail(status_message=(
-                f'The search hit the {timeout}s time limit before finishing, so nothing was charged. '
-                f'Pick fewer sources, lower Results per source, or raise Time limit.'))
-            return
+            output, returncode, timed_out = await run_theharvester(cmd, timeout)
         except FileNotFoundError as e:
             await Actor.fail(status_message=f'theHarvester binary not found: {e}')
             return
+        Actor.log.info(f'theHarvester exit code: {returncode} ({len(output)} chars of output)')
+        files = await save_files(output)
 
-        Actor.log.info(f'theHarvester exit code: {result.returncode} (stdout {len(result.stdout or "")} chars, stderr {len(result.stderr or "")} chars)')
-
-        files = await save_files(result.stdout or '')
-
-        # Surface the last interesting lines of stdout - theHarvester prints its summary near the end
-        if result.stdout:
-            stdout_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
-            for line in stdout_lines[-30:]:
-                Actor.log.info(line)
-        if result.stderr:
-            for line in [ln for ln in result.stderr.splitlines() if ln.strip()][-20:]:
-                Actor.log.warning(line)
-
-        if result.returncode != 0:
-            Actor.log.error(f'theHarvester exited with code {result.returncode}')
+        if timed_out:
+            last_step = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip().startswith('[')), 'unknown step')
+            if not os.path.exists(f'{OUTPUT_PREFIX}.json'):
+                await Actor.fail(status_message=(
+                    f'The search hit the {timeout}s time limit (while on: {last_step[:120]}) before any results were saved, '
+                    f'so nothing was charged. Turn off the slow extra checks, pick fewer sources, or raise Time limit.'))
+                return
+            # theHarvester writes its results file before the API scan, so a run cut off late still has them.
+            notes.append(f'Time limit ({timeout}s) was reached while on: {last_step[:120]}. Results found before that are included; '
+                         f'the full output so far is in theharvester-output.txt.')
+        elif returncode != 0:
+            Actor.log.error(f'theHarvester exited with code {returncode}')
 
         # Parse output
         json_path = f'{OUTPUT_PREFIX}.json'
@@ -687,7 +703,7 @@ async def main() -> None:
                 'files': files,
                 'success': False,
                 'error': 'theHarvester produced no JSON output',
-                'exitCode': result.returncode,
+                'exitCode': returncode,
                 'timestamp': datetime.now(timezone.utc).isoformat(),
             })
             return

@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from src.main import (build_command, parse_host_entry, build_api_keys_file,
                       API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain,
                       resolve_hosts, default_api_keys, normalize_input, InputError,
-                      key_sources, fit_timeout, push_records, save_files, OUTPUT_PREFIX, SCREENSHOT_DIR)
+                      key_sources, fit_timeout, push_records, save_files, OUTPUT_PREFIX, SCREENSHOT_DIR,
+                      run_theharvester)
 
 import yaml
 import shutil
@@ -295,6 +296,17 @@ try:
 finally:
     for f in [OUTPUT_PREFIX + '.json', OUTPUT_PREFIX + '.xml']: pathlib.Path(f).unlink(missing_ok=True)
     shutil.rmtree(SCREENSHOT_DIR, ignore_errors=True)
+
+print()
+print('=' * 60)
+print('TEST 12: run_theharvester streams output and keeps it on timeout')
+print('=' * 60)
+py = sys.executable
+out, code, timed_out = asyncio.run(run_theharvester([py, '-c', "print('[*] Searching CRTsh.'); print('host.x.com')"], 30))
+assert code == 0 and not timed_out and 'host.x.com' in out, (code, timed_out, out)
+out, code, timed_out = asyncio.run(run_theharvester([py, '-u', '-c', "import time; print('[*] Starting API endpoint scanning'); time.sleep(30)"], 2))
+assert timed_out and 'Starting API endpoint scanning' in out, (code, timed_out, out)
+print('  ✓ normal run returns full output; a hung run is killed at the limit with its output kept')
 
 print()
 print('ALL UNIT TESTS PASS ✓')
