@@ -16,7 +16,8 @@ sys.modules['apify'] = apify_stub
 sys.path.insert(0, os.path.dirname(__file__))
 from src.main import (build_command, parse_host_entry, build_api_keys_file,
                       API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain,
-                      resolve_hosts)
+                      resolve_hosts, default_api_keys, normalize_input, InputError,
+                      key_sources, fit_timeout)
 
 import yaml
 import shutil
@@ -123,26 +124,17 @@ print()
 print('=' * 60)
 print('TEST 5: API_KEY_FIELDS covers all upstream services')
 print('=' * 60)
-# Per upstream api-keys.yaml: 35 services
-upstream_services = {
-    'bevigil', 'bitbucket', 'brave', 'bufferoverun', 'builtwith',
-    'censys', 'chaos', 'criminalip', 'dehashed', 'dnsdumpster',
-    'dymo', 'fofa', 'fullhunt', 'github', 'hackertarget',
-    'haveibeenpwned', 'hunter', 'hunterhow', 'intelx', 'leakix',
-    'leaklookup', 'mojeek', 'netlas', 'onyphe', 'pentestTools',
-    'projectDiscovery', 'rocketreach', 'securityscorecard', 'securityTrails',
-    'shodan', 'subdomainfinderc99', 'tomba', 'venacus', 'virustotal',
-    'whoisxml', 'windvane', 'zoomeye'
-}
-covered = set(API_KEY_FIELDS.keys())
-missing = upstream_services - covered
-extra = covered - upstream_services
-print(f'  Upstream services: {len(upstream_services)}')
-print(f'  Wrapper covers:    {len(covered)}')
-print(f'  Missing (gaps):    {sorted(missing)}')
-print(f'  Extra (wrapper-only): {sorted(extra)}')
-assert not missing, f'API key coverage gap: {missing}'
-print('  ✓ Full API key coverage')
+# Compare with the api-keys.yaml of the installed theHarvester, so this never goes stale.
+upstream_services = set(default_api_keys())
+if not upstream_services:
+    print('  (theHarvester not installed here - skipped)')
+else:
+    covered = set(API_KEY_FIELDS.keys())
+    missing = upstream_services - covered
+    print(f'  Upstream services: {len(upstream_services)}  Wrapper covers: {len(covered)}')
+    print(f'  Missing (gaps): {sorted(missing)}  Wrapper-only: {sorted(covered - upstream_services)}')
+    assert not missing, f'API key coverage gap: {missing}'
+    print('  ✓ Full API key coverage')
 
 print()
 print('=' * 60)
@@ -185,6 +177,91 @@ got = asyncio.run(resolve_hosts(['localhost', 'no-such-host.invalid', 'localhost
 assert got == {'localhost': True, 'no-such-host.invalid': False, 'bad..name': False}, got
 print(f'  {got}')
 print('  ✓ Live name True, unresolvable/malformed False, duplicates collapsed')
+
+print()
+print('=' * 60)
+print('TEST 9: normalize_input - one field, bad formats, soft fixes')
+print('=' * 60)
+SUP = {'crtsh', 'hackertarget', 'rapiddns', 'certspotter', 'virustotal', 'otx', 'github-code', 'shodan', 'securityTrails', 'chaos'}
+KEYED = key_sources({'virustotal': {}, 'shodan': {}, 'github': {}, 'hackertarget': {}, 'securityTrails': {}, 'projectDiscovery': {}})
+assert KEYED['chaos'] == 'projectDiscovery' and KEYED['github-code'] == 'github' and 'hackertarget' not in KEYED
+
+# Non-tech user: only the website -> complete input, no notes.
+inp, notes = normalize_input({'domain': 'tesla.com'}, SUP, KEYED)
+assert inp['domain'] == 'tesla.com' and inp['sources'] == ['crtsh', 'hackertarget', 'rapiddns', 'certspotter']
+assert (inp['limit'], inp['start'], inp['timeout'], inp['quiet'], inp['dnsBrute']) == (500, 0, 1800, True, False)
+assert notes == [], notes
+
+# Platform-filled nulls (API/agents) are fine.
+inp, notes = normalize_input({'domain': 'tesla.com', 'shodanApiKey': None, 'extraApiKeys': None, 'dnsServer': None, 'sources': None}, SUP, KEYED)
+assert notes == [] and inp['sources'][0] == 'crtsh', notes
+
+# Domain from an alias field, a pasted link, several at once.
+inp, notes = normalize_input({'url': 'https://www.Tesla.com/models?x=1'}, SUP, KEYED)
+assert inp['domain'] == 'tesla.com' and any('Cleaned' in n for n in notes)
+inp, notes = normalize_input({'domain': 'a.com, b.com\nc.com'}, SUP, KEYED)
+assert inp['domain'] == 'a.com' and any('skipped 2 more' in n for n in notes)
+inp, _ = normalize_input({'domains': ['x.org', 'y.org']}, SUP, KEYED)
+assert inp['domain'] == 'x.org'
+
+# Unusable domain: the only hard failures.
+for bad in [{}, {'domain': ''}, {'domain': '   '}, {'domain': 'not a domain'}, {'domain': 'justtext'}]:
+    try:
+        normalize_input(bad, SUP, KEYED); raise SystemExit(f'should fail: {bad}')
+    except InputError as e:
+        assert 'itm.edu' in str(e), e
+
+# Sources: typed names, commas, aliases, unknowns, key warnings.
+inp, notes = normalize_input({'domain': 'x.com', 'sources': 'crt.sh, VirusTotal, bogus, AlienVault, GitHub'}, SUP, KEYED)
+assert inp['sources'] == ['crtsh', 'virustotal', 'otx', 'github-code'], inp['sources']
+assert any('bogus' in n for n in notes) and any('No key for virustotal, github-code' in n for n in notes), notes
+inp, notes = normalize_input({'domain': 'x.com', 'sources': ['nope', 'nada']}, SUP, KEYED)
+assert inp['sources'] == ['crtsh', 'hackertarget', 'rapiddns', 'certspotter'] and any('free defaults' in n for n in notes)
+inp, notes = normalize_input({'domain': 'x.com', 'sources': ['chaos'], 'chaosApiKey': 'k'}, SUP, KEYED)
+assert not any('No key' in n for n in notes), notes   # chaos reads the ProjectDiscovery key, which chaosApiKey fills
+
+# Numbers and yes/no given in loose forms.
+inp, notes = normalize_input({'domain': 'x.com', 'limit': 'abc', 'timeout': 5, 'start': '-3'}, SUP, KEYED)
+assert (inp['limit'], inp['timeout'], inp['start']) == (500, 60, 0) and len(notes) == 3, notes
+inp, notes = normalize_input({'domain': 'x.com', 'limit': '200', 'dnsLookup': 'yes', 'quiet': 'no'}, SUP, KEYED)
+assert (inp['limit'], inp['dnsLookup'], inp['quiet']) == (200, True, False) and notes == [], notes
+inp, notes = normalize_input({'domain': 'x.com', 'limit': 99999, 'dnsBrute': 'maybe'}, SUP, KEYED)
+assert inp['limit'] == 10000 and inp['dnsBrute'] is False and len(notes) == 2, notes
+
+# Features that need a missing key are switched off; keys are trimmed; extra keys merged.
+inp, notes = normalize_input({'domain': 'x.com', 'shodan': True}, SUP, KEYED)
+assert inp['shodan'] is False and any('Shodan key' in n for n in notes)
+inp, notes = normalize_input({'domain': 'x.com', 'shodan': True, 'shodanApiKey': '  s-key  '}, SUP, KEYED)
+assert inp['shodan'] is True and inp['shodanApiKey'] == 's-key'
+inp, notes = normalize_input({'domain': 'x.com', 'extraApiKeys': '{"netlasApiKey": " n ", "madeUpKey": "z"}'}, SUP, KEYED)
+assert inp['netlasApiKey'] == 'n' and any('madeUpKey' in n for n in notes)
+inp, notes = normalize_input({'domain': 'x.com', 'extraApiKeys': '{broken'}, SUP, KEYED)
+assert any('not valid JSON' in n for n in notes)
+
+# Technical strings: kept only when usable.
+inp, notes = normalize_input({'domain': 'x.com', 'dnsServer': '8.8.8.8', 'dnsResolve': '1.1.1.1, 8.8.4.4'}, SUP, KEYED)
+assert inp['dnsServer'] == '8.8.8.8' and inp['dnsResolve'] == '1.1.1.1,8.8.4.4' and notes == [], notes
+inp, notes = normalize_input({'domain': 'x.com', 'dnsServer': 'dns.google', 'dnsResolve': 'foo', 'wordlist': '/nope.txt'}, SUP, KEYED)
+assert 'dnsServer' not in inp and 'dnsResolve' not in inp and 'wordlist' not in inp and len(notes) == 3, notes
+
+# Typos in field names are reported.
+inp, notes = normalize_input({'domain': 'x.com', 'limt': 5}, SUP, KEYED)
+assert any('limt' in n for n in notes), notes
+print('  ✓ one-field run, nulls, aliases, pasted links, loose numbers/booleans, unknown sources, missing keys, typos')
+
+print()
+print('=' * 60)
+print('TEST 10: fit_timeout keeps the search inside the run limit')
+print('=' * 60)
+from datetime import datetime, timedelta, timezone
+os.environ['ACTOR_TIMEOUT_AT'] = (datetime.now(timezone.utc) + timedelta(seconds=600)).isoformat().replace('+00:00', 'Z')
+n = []
+t = fit_timeout(1800, n)
+assert 500 <= t <= 540 and n, (t, n)
+assert fit_timeout(120, []) == 120
+del os.environ['ACTOR_TIMEOUT_AT']
+assert fit_timeout(1800, []) == 1800
+print(f'  ✓ 1800s lowered to {t}s with 10 min of run left; untouched when it fits or no deadline')
 
 print()
 print('ALL UNIT TESTS PASS ✓')

@@ -5,7 +5,10 @@
     "description": "Find the emails and subdomains tied to any domain. Type a domain (we auto-clean full URLs) and get emails, subdomains, IPs, URLs and ASNs from 54+ public sources like crt.sh, Shodan and Hunter. Clean per-record output, export to CSV or CRM. Pay only per record found.",
     "version": "1.1",
     "buildTag": "latest",
-    "categories": ["DEVELOPER_TOOLS", "AUTOMATION"],
+    "categories": [
+        "DEVELOPER_TOOLS",
+        "AUTOMATION"
+    ],
     "input": "./INPUT_SCHEMA.json",
     "output": "./output_schema.json",
     "dockerfile": "../Dockerfile",
@@ -13,49 +16,350 @@
     "storages": {
         "dataset": {
             "actorSpecification": 1,
-            "title": "theHarvester Results",
+            "title": "theHarvester results",
             "views": {
                 "hosts": {
-                    "title": "Hosts (Subdomains)",
+                    "title": "Subdomains",
                     "transformation": {
-                        "fields": ["host", "ip", "resolves", "domain", "timestamp"]
+                        "fields": [
+                            "host",
+                            "resolves",
+                            "ip",
+                            "domain",
+                            "timestamp"
+                        ]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
-                            "host": { "label": "Subdomain", "format": "text" },
-                            "ip": { "label": "IP", "format": "text" },
-                            "resolves": { "label": "Live in DNS", "format": "boolean" },
-                            "domain": { "label": "Target Domain", "format": "text" },
-                            "timestamp": { "label": "Found At", "format": "text" }
+                            "host": {
+                                "label": "Subdomain (host)",
+                                "format": "text"
+                            },
+                            "resolves": {
+                                "label": "Live now? (resolves)",
+                                "format": "boolean"
+                            },
+                            "ip": {
+                                "label": "IP address (ip)",
+                                "format": "text"
+                            },
+                            "domain": {
+                                "label": "Website researched (domain)",
+                                "format": "text"
+                            },
+                            "timestamp": {
+                                "label": "Found at (timestamp)",
+                                "format": "text"
+                            }
                         }
                     }
                 },
                 "emails": {
                     "title": "Emails",
                     "transformation": {
-                        "fields": ["email", "domain", "timestamp"]
+                        "fields": [
+                            "email",
+                            "domain",
+                            "timestamp"
+                        ]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
-                            "email": { "label": "Email", "format": "text" },
-                            "domain": { "label": "Target Domain", "format": "text" }
+                            "email": {
+                                "label": "Email address (email)",
+                                "format": "text"
+                            },
+                            "domain": {
+                                "label": "Website researched (domain)",
+                                "format": "text"
+                            },
+                            "timestamp": {
+                                "label": "Found at (timestamp)",
+                                "format": "text"
+                            }
                         }
                     }
                 },
                 "summary": {
-                    "title": "Run Summary",
+                    "title": "Run summary",
                     "transformation": {
-                        "fields": ["recordType", "domain", "sources", "counts", "success", "apiKeysConfigured", "timestamp"]
+                        "fields": [
+                            "recordType",
+                            "domain",
+                            "sources",
+                            "counts",
+                            "inputNotes",
+                            "success",
+                            "foundAnything",
+                            "message",
+                            "apiKeysConfigured",
+                            "timestamp"
+                        ]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
-                            "domain": { "label": "Domain", "format": "text" },
-                            "sources": { "label": "Sources", "format": "text" },
-                            "success": { "label": "Success", "format": "boolean" }
+                            "recordType": {
+                                "label": "Kind of result (recordType)",
+                                "format": "text"
+                            },
+                            "domain": {
+                                "label": "Website researched (domain)",
+                                "format": "text"
+                            },
+                            "sources": {
+                                "label": "Sources used (sources)",
+                                "format": "text"
+                            },
+                            "counts": {
+                                "label": "Totals (counts)",
+                                "format": "object"
+                            },
+                            "inputNotes": {
+                                "label": "Input notes (inputNotes)",
+                                "format": "object"
+                            },
+                            "success": {
+                                "label": "Search ran? (success)",
+                                "format": "boolean"
+                            },
+                            "foundAnything": {
+                                "label": "Found anything? (foundAnything)",
+                                "format": "boolean"
+                            },
+                            "message": {
+                                "label": "Note (message)",
+                                "format": "text"
+                            },
+                            "apiKeysConfigured": {
+                                "label": "Keys given (apiKeysConfigured)",
+                                "format": "text"
+                            },
+                            "timestamp": {
+                                "label": "Found at (timestamp)",
+                                "format": "text"
+                            }
                         }
+                    }
+                }
+            },
+            "fields": {
+                "type": "object",
+                "properties": {
+                    "recordType": {
+                        "title": "Kind of result (recordType)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "What this row is: host (subdomain), email, ip, url, asn, shodan, person, or summary (one per run, last).",
+                        "example": "host"
+                    },
+                    "domain": {
+                        "title": "Website researched (domain)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The website this run researched, after cleaning.",
+                        "example": "tesla.com"
+                    },
+                    "host": {
+                        "title": "Subdomain (host)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A subdomain found for the website. Host rows only.",
+                        "example": "shop.tesla.com"
+                    },
+                    "ip": {
+                        "title": "IP address (ip)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The IP address, when the source gave one. Host and ip rows.",
+                        "example": "23.45.67.89"
+                    },
+                    "resolves": {
+                        "title": "Live now? (resolves)",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "Whether the subdomain answers in public DNS right now. False means retired or internal-only. Host rows only.",
+                        "example": true
+                    },
+                    "raw": {
+                        "title": "As found (raw)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The host entry exactly as theHarvester returned it.",
+                        "example": "shop.tesla.com:23.45.67.89"
+                    },
+                    "email": {
+                        "title": "Email address (email)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "An email address found for the website. Email rows only.",
+                        "example": "press@tesla.com"
+                    },
+                    "url": {
+                        "title": "Web address (url)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "An interesting URL found for the website. URL rows only.",
+                        "example": "https://tesla.com/careers"
+                    },
+                    "asn": {
+                        "title": "Network number (asn)",
+                        "type": [
+                            "string",
+                            "integer",
+                            "null"
+                        ],
+                        "description": "An autonomous system number (the network that owns the IPs). ASN rows only.",
+                        "example": "AS394161"
+                    },
+                    "shodan": {
+                        "title": "Shodan details (shodan)",
+                        "type": [
+                            "object",
+                            "array",
+                            "string",
+                            "null"
+                        ],
+                        "description": "Open ports and services from Shodan, when Add Shodan details is on.",
+                        "example": {
+                            "ip": "23.45.67.89",
+                            "ports": [
+                                443
+                            ]
+                        }
+                    },
+                    "person": {
+                        "title": "Person (person)",
+                        "type": [
+                            "string",
+                            "object",
+                            "null"
+                        ],
+                        "description": "A person's name some sources return. Person rows only.",
+                        "example": "Jane Doe"
+                    },
+                    "timestamp": {
+                        "title": "Found at (timestamp)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "When the run found this row, in UTC.",
+                        "example": "2026-09-25T12:00:00+00:00"
+                    },
+                    "sources": {
+                        "title": "Sources used (sources)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Comma-separated sources this run searched. Summary row only.",
+                        "example": "crtsh,hackertarget,rapiddns,certspotter"
+                    },
+                    "apiKeysConfigured": {
+                        "title": "Keys given (apiKeysConfigured)",
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "How many services had a key. Summary row only.",
+                        "example": 0
+                    },
+                    "success": {
+                        "title": "Search ran? (success)",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "Whether the search completed and produced output. Summary row only.",
+                        "example": true
+                    },
+                    "foundAnything": {
+                        "title": "Found anything? (foundAnything)",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "description": "Whether the run found at least one result. Summary row only.",
+                        "example": true
+                    },
+                    "message": {
+                        "title": "Note (message)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A plain explanation when nothing was found. Summary row only.",
+                        "example": null
+                    },
+                    "counts": {
+                        "title": "Totals (counts)",
+                        "type": "object",
+                        "description": "Totals by kind: hosts, liveHosts, emails, ips, urls, asns, shodan, people. Summary row only.",
+                        "example": {
+                            "hosts": 101,
+                            "liveHosts": 93,
+                            "emails": 0
+                        }
+                    },
+                    "inputNotes": {
+                        "title": "Input notes (inputNotes)",
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Plain notes on anything in your input that was fixed or skipped. Empty when all was fine. Summary row only.",
+                        "example": [
+                            "Skipped unknown source(s): bogus."
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cmd": {
+                        "title": "Command run (cmd)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The theHarvester command that ran. Summary row only.",
+                        "example": "-d tesla.com -b crtsh -l 500"
+                    },
+                    "error": {
+                        "title": "Problem (error)",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "What went wrong when the search produced no output. Summary row only.",
+                        "example": null
+                    },
+                    "exitCode": {
+                        "title": "Exit code (exitCode)",
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "theHarvester's exit code when it produced no output. Summary row only.",
+                        "example": null
                     }
                 }
             }

@@ -1,220 +1,340 @@
 {
     "title": "Find emails & subdomains for a domain",
-    "description": "Enter a domain and we harvest its emails, subdomains, IPs, URLs and ASNs from 54+ public sources. Everything except the domain is optional.",
+    "description": "Enter a website and get its subdomains, emails, IPs, URLs and ASNs from 55 public sources. Only the website is needed; every other field has a working default.",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
         "domain": {
-            "title": "Domain",
+            "title": "Website to research (domain)",
             "type": "string",
-            "description": "The domain to investigate, for example itm.edu or github.com. Enter just the domain - we auto-clean full links, so https://www.itm.edu/ becomes itm.edu, and you can also enter an IP address. We then harvest its emails, subdomains, IPs, URLs and ASNs from public sources.",
             "editor": "textfield",
             "example": "itm.edu",
-            "prefill": "example.com"
+            "prefill": "example.com",
+            "description": "Enter the website to research, like itm.edu. A full link, www., an email or a port is cleaned to the bare domain, and an IP address also works. One per run; if you paste several, the first is used. Same as -d in theHarvester."
         },
         "sources": {
-            "title": "Sources to search",
+            "title": "Where to search (sources)",
             "type": "array",
-            "description": "Which sources to search. The four defaults (crt.sh, HackerTarget, RapidDNS, CertSpotter) are free and need no API key. Sources marked with a key icon need an API key, which you add in the API keys section below. Sources marked with a tick are free.",
             "editor": "select",
-            "default": ["crtsh", "hackertarget", "rapiddns", "certspotter"],
-            "prefill": ["crtsh", "hackertarget", "rapiddns", "certspotter"],
+            "default": [
+                "crtsh",
+                "hackertarget",
+                "rapiddns",
+                "certspotter"
+            ],
+            "prefill": [
+                "crtsh",
+                "hackertarget",
+                "rapiddns",
+                "certspotter"
+            ],
             "sectionCaption": "Search options",
-            "sectionDescription": "Which sources to search and how many results to pull. The defaults are free and need no API key.",
+            "sectionDescription": "Where to look and how deep. The defaults are free and need no key.",
+            "description": "Pick where to search. Default: crt.sh, HackerTarget, RapidDNS and CertSpotter, all free. Also free: AlienVault OTX, URLScan, ThreatCrowd, DuckDuckGo, Baidu, Yahoo, Common Crawl, Wayback Machine, Robtex, Subdomain Center, Hudson Rock, THC, Shodan InternetDB. Sources marked \"needs key\" return nothing without your key in Your own keys. Names like \"crt.sh\" or \"VirusTotal\" are accepted; unknown names are skipped with a note. Same as -b in theHarvester.",
             "items": {
                 "type": "string",
-                "enum": [
-                    "crtsh", "hackertarget", "rapiddns", "certspotter", "otx", "urlscan",
-                    "threatcrowd", "dnsdumpster", "duckduckgo", "baidu", "yahoo", "mojeek",
-                    "brave", "commoncrawl", "waybackarchive", "robtex", "subdomaincenter", "hudsonrock", "thc",
-                    "shodan", "censys", "virustotal", "securityTrails", "hunter", "hunterhow",
-                    "intelx", "fullhunt", "netlas", "leakix", "leaklookup", "zoomeye",
-                    "criminalip", "dehashed", "fofa", "github-code", "gitlab", "bitbucket",
-                    "bevigil", "builtwith", "chaos", "projectdiscovery", "onyphe", "pentesttools",
-                    "rocketreach", "securityscorecard", "subdomainfinderc99", "tomba", "venacus",
-                    "whoisxml", "windvane", "dymo", "haveibeenpwned", "bufferoverun", "shodanInternetDB"
+                "enumSuggestedValues": [
+                    "crtsh",
+                    "hackertarget",
+                    "rapiddns",
+                    "certspotter",
+                    "otx",
+                    "urlscan",
+                    "threatcrowd",
+                    "duckduckgo",
+                    "baidu",
+                    "yahoo",
+                    "commoncrawl",
+                    "waybackarchive",
+                    "robtex",
+                    "subdomaincenter",
+                    "hudsonrock",
+                    "thc",
+                    "shodanInternetDB",
+                    "shodan",
+                    "censys",
+                    "virustotal",
+                    "securityTrails",
+                    "hunter",
+                    "hunterhow",
+                    "intelx",
+                    "fullhunt",
+                    "netlas",
+                    "leakix",
+                    "leaklookup",
+                    "zoomeye",
+                    "criminalip",
+                    "dehashed",
+                    "fofa",
+                    "github-code",
+                    "gitlab",
+                    "bitbucket",
+                    "bevigil",
+                    "builtwith",
+                    "brave",
+                    "dnsdumpster",
+                    "mojeek",
+                    "chaos",
+                    "projectdiscovery",
+                    "onyphe",
+                    "pentesttools",
+                    "rocketreach",
+                    "securityscorecard",
+                    "subdomainfinderc99",
+                    "tomba",
+                    "venacus",
+                    "whoisxml",
+                    "windvane",
+                    "dymo",
+                    "haveibeenpwned",
+                    "bufferoverun",
+                    "sherlockeye"
                 ],
                 "enumTitles": [
-                    "crt.sh ✓ (TLS cert transparency)", "HackerTarget ✓", "RapidDNS ✓", "CertSpotter ✓", "AlienVault OTX ✓", "URLScan ✓",
-                    "ThreatCrowd ✓", "DNSdumpster ✓", "DuckDuckGo ✓", "Baidu ✓", "Yahoo ✓", "Mojeek ✓",
-                    "Brave Search ✓", "CommonCrawl ✓", "Wayback Archive ✓", "Robtex ✓", "SubdomainCenter ✓", "HudsonRock ✓", "THC ✓",
-                    "Shodan 🔑", "Censys 🔑", "VirusTotal 🔑", "SecurityTrails 🔑", "Hunter.io 🔑", "HunterHow 🔑",
-                    "IntelX 🔑", "FullHunt 🔑", "Netlas 🔑", "LeakIX 🔑", "LeakLookup 🔑", "ZoomEye 🔑",
-                    "CriminalIP 🔑", "Dehashed 🔑", "FOFA 🔑", "GitHub Code 🔑", "GitLab 🔑", "Bitbucket 🔑",
-                    "BeVigil 🔑", "BuiltWith 🔑", "ProjectDiscovery Chaos 🔑", "ProjectDiscovery 🔑", "Onyphe 🔑", "PentestTools 🔑",
-                    "RocketReach 🔑", "SecurityScorecard 🔑", "SubdomainFinder C99 🔑", "Tomba 🔑", "Venacus 🔑",
-                    "WhoisXML 🔑", "Windvane 🔑", "Dymo 🔑", "HaveIBeenPwned 🔑", "BufferOverun 🔑", "Shodan InternetDB 🔑"
+                    "crt.sh certificates (crtsh)",
+                    "HackerTarget",
+                    "RapidDNS",
+                    "CertSpotter",
+                    "AlienVault OTX (otx)",
+                    "URLScan",
+                    "ThreatCrowd",
+                    "DuckDuckGo",
+                    "Baidu",
+                    "Yahoo",
+                    "Common Crawl",
+                    "Wayback Machine (waybackarchive)",
+                    "Robtex",
+                    "Subdomain Center",
+                    "Hudson Rock",
+                    "THC",
+                    "Shodan InternetDB",
+                    "Shodan, needs key",
+                    "Censys, needs key",
+                    "VirusTotal, needs key",
+                    "SecurityTrails, needs key",
+                    "Hunter.io, needs key (hunter)",
+                    "Hunter.how, needs key (hunterhow)",
+                    "IntelX, needs key",
+                    "FullHunt, needs key",
+                    "Netlas, needs key",
+                    "LeakIX, needs key",
+                    "LeakLookup, needs key",
+                    "ZoomEye, needs key",
+                    "Criminal IP, needs key (criminalip)",
+                    "DeHashed, needs key",
+                    "FOFA, needs key",
+                    "GitHub code, needs key (github-code)",
+                    "GitLab, needs key",
+                    "Bitbucket, needs key",
+                    "BeVigil, needs key",
+                    "BuiltWith, needs key",
+                    "Brave Search, needs key (brave)",
+                    "DNSDumpster, needs key",
+                    "Mojeek, needs key",
+                    "Chaos, needs key",
+                    "ProjectDiscovery, needs key",
+                    "Onyphe, needs key",
+                    "Pentest-Tools, needs key (pentesttools)",
+                    "RocketReach, needs key",
+                    "SecurityScorecard, needs key",
+                    "C99, needs key (subdomainfinderc99)",
+                    "Tomba, needs key",
+                    "Venacus, needs key",
+                    "WhoisXML, needs key",
+                    "Windvane, needs key",
+                    "Dymo, needs key",
+                    "HIBP, needs key (haveibeenpwned)",
+                    "BufferOverun, needs key",
+                    "SherlockEye, needs key"
                 ]
             },
-            "uniqueItems": true,
-            "minItems": 1
+            "uniqueItems": true
         },
         "limit": {
-            "title": "Results per source",
+            "title": "Results per source (limit)",
             "type": "integer",
-            "description": "Maximum number of results to pull from each source. Default 500. Lower it for faster, cheaper runs; raise it for deeper coverage.",
             "editor": "number",
             "default": 500,
             "minimum": 1,
-            "maximum": 10000
+            "maximum": 10000,
+            "unit": "results",
+            "description": "Enter how many results to pull from each source, 1 to 10000. Default 500. Lower is faster; higher digs deeper. Out-of-range values are brought into range with a note. Same as -l in theHarvester."
         },
-        "start": {
-            "title": "Skip first N results",
-            "type": "integer",
-            "description": "Skip the first N results from each source. Used for paging through very large result sets. Leave at 0 for normal runs.",
-            "editor": "number",
-            "default": 0,
-            "minimum": 0,
-            "sectionCaption": "Advanced options",
-            "sectionDescription": "Extra recon features and tuning. The defaults are fine for most runs - you can leave this whole section alone."
+        "dnsLookup": {
+            "title": "Find IP addresses (dnsLookup)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "sectionCaption": "Extra checks",
+            "sectionDescription": "Optional deeper checks. Each one makes the run slower. Leave off for a quick run.",
+            "description": "Turn on to find the IP address of each subdomain found. Slower. Off by default. Every subdomain already gets a live yes/no check. Same as -n (DNS lookup) in theHarvester."
+        },
+        "dnsBrute": {
+            "title": "Hidden subdomains (dnsBrute)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "description": "Turn on to find hidden subdomains by trying common names like mail, dev, vpn and staging. Finds names missing from public records, but is much slower. Off by default. Same as -c (DNS brute force) in theHarvester."
+        },
+        "takeOver": {
+            "title": "Takeover risk check (takeOver)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "description": "Turn on to check for takeover risk: subdomains still pointing at an unclaimed outside service that anyone could claim. Off by default. Same as -t (subdomain takeover) in theHarvester."
+        },
+        "screenshot": {
+            "title": "Page screenshots (screenshot)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "description": "Turn on to take page screenshots of each subdomain's home page. Saved to the run's key-value store. Slower. Off by default. Same as --screenshot in theHarvester."
+        },
+        "shodan": {
+            "title": "Add Shodan details (shodan)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "description": "Turn on to add Shodan details (open ports, services) for each host found. Needs your Shodan key below; without it this is switched off with a note. Off by default. Same as -s in theHarvester."
+        },
+        "apiScan": {
+            "title": "Find exposed endpoints (apiScan)",
+            "type": "boolean",
+            "editor": "checkbox",
+            "default": false,
+            "description": "Turn on to find exposed endpoints: API paths left open on the website. Works best with a word list file. Off by default. Same as -a (API scan) in theHarvester."
+        },
+        "shodanApiKey": {
+            "title": "Shodan key (shodanApiKey)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "sectionCaption": "Your own keys",
+            "sectionDescription": "Leave all blank unless you have an account. The free default sources need no key.",
+            "description": "Enter your Shodan key from shodan.io, for the Shodan source and Shodan details. Leave blank otherwise."
+        },
+        "censysApiId": {
+            "title": "Censys ID (censysApiId)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your Censys ID from censys.io. Used together with the Censys secret."
+        },
+        "censysApiSecret": {
+            "title": "Censys secret (censysApiSecret)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your Censys secret from censys.io. Used together with the Censys ID."
+        },
+        "securitytrailsApiKey": {
+            "title": "SecTrails key (securitytrailsApiKey)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your SecurityTrails key from securitytrails.com. Adds strong subdomain coverage."
+        },
+        "hunterApiKey": {
+            "title": "Hunter key (hunterApiKey)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your Hunter.io key from hunter.io. Adds email discovery."
+        },
+        "virustotalApiKey": {
+            "title": "VirusTotal key (virustotalApiKey)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your VirusTotal key from virustotal.com."
+        },
+        "githubToken": {
+            "title": "GitHub key (githubToken)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your GitHub key (a personal access token), for searching public code that mentions the website."
+        },
+        "braveApiKey": {
+            "title": "Brave Search key (braveApiKey)",
+            "type": "string",
+            "editor": "textfield",
+            "isSecret": true,
+            "nullable": true,
+            "description": "Enter your Brave Search key from brave.com/search/api. A free tier is available."
+        },
+        "extraApiKeys": {
+            "title": "Other keys (extraApiKeys)",
+            "type": "object",
+            "editor": "json",
+            "nullable": true,
+            "description": "Enter other keys for the remaining sources as one object, e.g. {\"netlasApiKey\": \"...\", \"fofaKey\": \"...\", \"fofaEmail\": \"you@example.com\"}. Unknown names are ignored with a note. Names: hunterhowApiKey, intelxApiKey, onypheApiKey, fullhuntApiKey, netlasApiKey, leakixApiKey, leaklookupApiKey, zoomeyeApiKey, bevigilApiKey, bitbucketApiKey, bufferoverunApiKey, builtwithApiKey, chaosApiKey, criminalipApiKey, dehashedApiKey, dnsdumpsterApiKey, dymoApiKey, fofaKey, fofaEmail, hackertargetApiKey, hibpApiKey, mojeekApiKey, pentesttoolsApiKey, projectdiscoveryApiKey, rocketreachApiKey, securityscorecardApiKey, sherlockeyeApiKey, subdomainfinderc99ApiKey, tombaKey, tombaSecret, venacusApiKey, whoisxmlApiKey, windvaneApiKey."
         },
         "timeout": {
-            "title": "Time limit (seconds)",
+            "title": "Time limit (timeout)",
             "type": "integer",
-            "description": "Stop the scan after this many seconds and return whatever was found by then. Default 1800 (30 minutes). Raise it for very large domains.",
             "editor": "number",
             "default": 1800,
             "minimum": 60,
-            "maximum": 3600
+            "maximum": 3600,
+            "unit": "seconds",
+            "sectionCaption": "Technical settings",
+            "sectionDescription": "For advanced users. The defaults suit almost every run.",
+            "description": "Enter the time limit for the search, 60 to 3600 seconds. Default 1800. It is also kept inside the run's own time limit, so the run always finishes and reports back. Out-of-range values are brought into range with a note."
         },
-        "dnsLookup": {
-            "title": "Resolve subdomains to IPs",
-            "type": "boolean",
-            "description": "Resolve each discovered subdomain to its IP address. Slower, but adds the IP next to every subdomain.",
-            "editor": "checkbox",
-            "default": false
-        },
-        "dnsBrute": {
-            "title": "Find hidden subdomains",
-            "type": "boolean",
-            "description": "Find hidden subdomains by trying a list of common names like mail, dev, vpn and staging. Slower, but uncovers subdomains that are not in public records.",
-            "editor": "checkbox",
-            "default": false
-        },
-        "dnsResolve": {
-            "title": "Custom resolver list (path)",
-            "type": "string",
-            "description": "Path to your own list of DNS resolvers, for advanced users. Leave empty to use the built-in defaults.",
-            "editor": "textfield"
+        "start": {
+            "title": "Skip first results (start)",
+            "type": "integer",
+            "editor": "number",
+            "default": 0,
+            "minimum": 0,
+            "unit": "results",
+            "description": "Enter how many results to skip from each source, for paging through very large result sets. Default 0 (skip none). Same as -S in theHarvester."
         },
         "dnsServer": {
-            "title": "Custom DNS server",
+            "title": "Lookup server (dnsServer)",
             "type": "string",
-            "description": "Use a specific DNS server for lookups, for example 8.8.8.8. Leave empty to use the defaults.",
-            "editor": "textfield"
+            "editor": "textfield",
+            "nullable": true,
+            "description": "Enter a lookup server (DNS server) IP address, like 8.8.8.8. Leave blank for the default. An invalid address is ignored with a note. Same as -e in theHarvester."
         },
-        "shodan": {
-            "title": "Enrich hosts with Shodan",
-            "type": "boolean",
-            "description": "Enrich the discovered hosts with extra data from Shodan. Needs a Shodan API key in the API keys section below.",
-            "editor": "checkbox",
-            "default": false
-        },
-        "takeOver": {
-            "title": "Check for subdomain takeover",
-            "type": "boolean",
-            "description": "Check the discovered subdomains for takeover risk - subdomains whose DNS still points at an unclaimed third-party service that someone else could claim.",
-            "editor": "checkbox",
-            "default": false
-        },
-        "screenshot": {
-            "title": "Screenshot each subdomain",
-            "type": "boolean",
-            "description": "Take a screenshot of each discovered subdomain's home page. Screenshots are saved to the run's storage.",
-            "editor": "checkbox",
-            "default": false
-        },
-        "apiScan": {
-            "title": "Scan for exposed API endpoints",
-            "type": "boolean",
-            "description": "Look for exposed or undocumented API endpoints on the domain. Works best together with a wordlist.",
-            "editor": "checkbox",
-            "default": false
+        "dnsResolve": {
+            "title": "Own lookup servers (dnsResolve)",
+            "type": "string",
+            "editor": "textfield",
+            "nullable": true,
+            "description": "Enter your own lookup servers (DNS resolvers) as comma-separated IPs, like 1.1.1.1,8.8.8.8, or a file path inside the image. Leave blank for the default. Invalid values are ignored with a note. Same as -r in theHarvester."
         },
         "wordlist": {
-            "title": "Wordlist (path)",
+            "title": "Word list file (wordlist)",
             "type": "string",
-            "description": "Path to a wordlist used by the API endpoint scan. On Apify cloud, only wordlists already built into the image can be used.",
-            "editor": "textfield"
+            "editor": "textfield",
+            "nullable": true,
+            "description": "Enter a word list file path inside the image, used by Find exposed endpoints and Hidden subdomains. Leave blank for the built-in list. A path that does not exist is ignored with a note. Same as -w in theHarvester."
         },
         "useProxies": {
-            "title": "Route through proxies",
+            "title": "Relay requests (useProxies)",
             "type": "boolean",
-            "description": "Route requests through proxies. Needs a proxy list configured in the image, so most users leave this off.",
             "editor": "checkbox",
-            "default": false
+            "default": false,
+            "description": "Turn on to relay requests through proxies listed in the image's proxies.yaml. Most users leave this off. Off by default. Same as -p in theHarvester."
         },
         "quiet": {
-            "title": "Hide missing-key warnings",
+            "title": "Shorter log (quiet)",
             "type": "boolean",
-            "description": "Hide the missing API key warnings in the run log. On by default to keep the log clean.",
             "editor": "checkbox",
-            "default": true
-        },
-        "shodanApiKey": {
-            "title": "Shodan API key",
-            "type": "string",
-            "description": "Your Shodan API key from shodan.io. Only needed if you select the Shodan source. Leave blank otherwise.",
-            "editor": "textfield",
-            "isSecret": true,
-            "sectionCaption": "API keys (optional - skip unless you have accounts)",
-            "sectionDescription": "Most people leave every field here blank. The free default sources already return emails and subdomains. Add a key only for a source you have an account with. For the 30+ less common sources, use the last field (more API keys)."
-        },
-        "censysApiId": {
-            "title": "Censys API ID",
-            "type": "string",
-            "description": "Your Censys API ID from censys.io. Pairs with the Censys API secret below.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "censysApiSecret": {
-            "title": "Censys API secret",
-            "type": "string",
-            "description": "Your Censys API secret from censys.io.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "securitytrailsApiKey": {
-            "title": "SecurityTrails API key",
-            "type": "string",
-            "description": "Your SecurityTrails API key from securitytrails.com. Adds strong subdomain coverage.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "hunterApiKey": {
-            "title": "Hunter.io API key",
-            "type": "string",
-            "description": "Your Hunter.io API key from hunter.io. Adds email discovery.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "virustotalApiKey": {
-            "title": "VirusTotal API key",
-            "type": "string",
-            "description": "Your VirusTotal API key from virustotal.com.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "githubToken": {
-            "title": "GitHub token",
-            "type": "string",
-            "description": "Your GitHub personal access token. Needed to search public code on GitHub for mentions of the domain.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "braveApiKey": {
-            "title": "Brave Search API key",
-            "type": "string",
-            "description": "Your Brave Search API key from brave.com/search/api. A free tier is available.",
-            "editor": "textfield",
-            "isSecret": true
-        },
-        "extraApiKeys": {
-            "title": "More API keys (advanced)",
-            "type": "object",
-            "description": "Keys for the other 30+ premium sources, as one JSON object. Use each provider's field name as the key, for example: {\"netlasApiKey\": \"...\", \"fofaKey\": \"...\", \"fofaEmail\": \"you@example.com\", \"intelxApiKey\": \"...\"}. Only needed for premium sources you selected that are not listed above. Supported names: hunterhowApiKey, intelxApiKey, onypheApiKey, fullhuntApiKey, netlasApiKey, leakixApiKey, leaklookupApiKey, zoomeyeApiKey, bevigilApiKey, bitbucketApiKey, bufferoverunApiKey, builtwithApiKey, chaosApiKey, criminalipApiKey, dehashedApiKey, dnsdumpsterApiKey, dymoApiKey, fofaKey, fofaEmail, hackertargetApiKey, hibpApiKey, mojeekApiKey, pentesttoolsApiKey, projectdiscoveryApiKey, rocketreachApiKey, securityscorecardApiKey, subdomainfinderc99ApiKey, tombaKey, tombaSecret, venacusApiKey, whoisxmlApiKey, windvaneApiKey.",
-            "editor": "json"
+            "default": true,
+            "description": "Keep the log shorter by hiding missing-key warnings from theHarvester. On by default. Same as -q in theHarvester."
         }
     },
-    "required": ["domain"]
+    "required": [
+        "domain"
+    ]
 }

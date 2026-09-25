@@ -2,7 +2,16 @@
 
 ## [1.1.2] - 2026-09-25
 
+### Fixed
+- HackerTarget, one of the four default free sources, returned nothing on every run: the key file the actor wrote left out its entry. The key file now starts from theHarvester's own and adds your keys.
+- `chaosApiKey` was written where theHarvester never reads it; it now fills the ProjectDiscovery key that the Chaos source uses.
+- A long search could be cut off by the run's own time limit with nothing returned; the search now always stops a minute early so results are saved.
+
 ### Added
+- Every input is checked and soft-fixed with a plain note (log, status message, summary `inputNotes`): numbers or yes/no as text, out-of-range numbers, source names in any form ("crt.sh", "VirusTotal"), unknown sources, typos in field names, invalid lookup server, missing word list, Shodan details without a key. Only a missing or unusable website stops the run, at $0.
+- The website can also be given as `url`, `website`, `domains`, `target` or `email`; with several, the first is used.
+- Source list is read from the installed theHarvester at run start, so an upstream rename never breaks a run. Added SherlockEye; DNSDumpster and Mojeek now correctly marked as needing a key, Shodan InternetDB as free.
+- Plain-words form labels with the field key in brackets, units on number fields, and documented output fields.
 - `resolves` on every host record: whether the subdomain answers in public DNS right now. Certificate logs also return retired and internal-only names; this lets users filter to live subdomains. The summary record adds `counts.liveHosts`, and the status message shows the live count.
 
 ### Changed

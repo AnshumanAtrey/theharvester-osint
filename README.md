@@ -47,12 +47,18 @@ Pay-per-event:
 
 ## Which inputs does it take?
 
-| Field | Required | What it does |
+Only the website is needed. Every other field has a working default, so typing just `tesla.com` gives a full run.
+
+| Field | Default | What it does |
 |---|---|---|
-| `domain` | yes | The domain to investigate. Paste a full URL and we auto-clean it to the domain. |
-| `sources` | no | Which sources to search. Defaults to four free ones that need no key. |
-| `limit` | no | Max results per source. Default 500. |
-| `extraApiKeys` | no | Optional JSON box for premium-source keys. Common providers (Shodan, Censys, SecurityTrails, Hunter, VirusTotal, GitHub, Brave) also have their own named fields. |
+| Website to research (`domain`) | required | The website, like itm.edu. A pasted link, www., email or port is cleaned to the domain. One per run. |
+| Where to search (`sources`) | 4 free sources | Names like "crt.sh" or "VirusTotal" work. Sources marked "needs key" return nothing without your key. |
+| Results per source (`limit`) | 500 | How deep to dig in each source, 1 to 10000. |
+| Extra checks (`dnsLookup`, `dnsBrute`, `takeOver`, `screenshot`, `shodan`, `apiScan`) | off | Deeper checks; each makes the run slower. |
+| Your own keys (`shodanApiKey`, ... , `extraApiKeys`) | blank | Only for sources you have an account with. |
+| Technical settings (`timeout`, `start`, `dnsServer`, `dnsResolve`, `wordlist`, `useProxies`, `quiet`) | sensible defaults | For advanced users. |
+
+**If something in your input is off, the run still works.** A number out of range is brought into range, "yes"/"no" and numbers as text are read, unknown sources and typos in field names are skipped, and a feature missing its key is switched off. Each fix is written as a plain note in the log, the status message and the summary row's `inputNotes`. Only a missing or unusable website stops the run, before anything is charged.
 
 ## What does the output look like?
 
@@ -141,4 +147,4 @@ When a user's need extends beyond this actor's scope, route them to the matching
 
 ## Last updated
 
-2026-05-29
+2026-09-25

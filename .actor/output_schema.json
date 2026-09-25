@@ -1,19 +1,19 @@
 {
     "actorOutputSchemaVersion": 1,
-    "title": "theHarvester OSINT Output",
-    "description": "Harvested OSINT data — subdomains, emails, IPs, URLs, ASNs, Shodan enrichment, and person/name findings. Each finding is pushed as an individual dataset item with a `recordType` discriminator (host, email, ip, url, asn, shodan, person, or summary).",
+    "title": "theHarvester results",
+    "description": "Every finding is one row with a recordType: host (subdomain), email, ip, url, asn, shodan, person, and one summary row at the end with totals and input notes.",
     "type": "object",
     "properties": {
-        "harvestedRecords": {
+        "results": {
             "type": "string",
-            "title": "Harvested OSINT Records",
-            "description": "All harvested findings — subdomains (hosts), emails, IPs, URLs, ASNs, shodan entries, and persons. Filter the dataset by `recordType` to view a single category. The final item is always a `summary` record with aggregate counts and the executed command.",
+            "title": "All results (results)",
+            "description": "Every row the run found. Use the Subdomains, Emails and Run summary views, or filter by recordType.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         },
         "screenshots": {
             "type": "string",
-            "title": "Subdomain Screenshots",
-            "description": "Browser screenshots of discovered subdomains, captured when the `screenshot` input is enabled. Empty when screenshots were not requested.",
+            "title": "Page screenshots (screenshots)",
+            "description": "Screenshots of each subdomain's home page, saved when Page screenshots is on. Empty otherwise.",
             "template": "{{links.apiDefaultKeyValueStoreUrl}}/keys"
         }
     }
