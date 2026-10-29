@@ -7,9 +7,17 @@ class _ActorLog:
     def info(self, m): print(f'[INFO ] {m}')
     def warning(self, m): print(f'[WARN ] {m}')
     def error(self, m): print(f'[ERROR] {m}')
+class _Charging:
+    left = None    # rows the spending limit can still pay for; None = no limit
+    def calculate_max_event_charge_count_within_limit(self, event):
+        return None if self.left is None else self.left - len(_Actor.rows)
+    def get_pricing_info(self):
+        return types.SimpleNamespace(max_total_charge_usd=0.5)
 class _Actor:
     log = _ActorLog()
     rows, kv = [], {}
+    charging = _Charging()
+    def get_charging_manager(self): return self.charging
     async def push_data(self, row): self.rows.append(row)
     async def set_value(self, key, value, content_type=None): self.kv[key] = (value, content_type)
 apify_stub.Actor = _Actor()
@@ -21,7 +29,7 @@ from src.main import (build_command, parse_host_entry, build_api_keys_file,
                       API_KEY_FIELDS, CONFIG_DIR, clean_domain, looks_like_domain,
                       resolve_hosts, default_api_keys, normalize_input, InputError,
                       key_sources, fit_timeout, push_records, save_files, OUTPUT_PREFIX, SCREENSHOT_DIR,
-                      run_theharvester)
+                      run_theharvester, parse_console)
 
 import yaml
 import shutil
@@ -277,7 +285,8 @@ data = {'cmd': '-d x.com', 'hosts': ['localhost'], 'emails': ['a@x.com'], 'shoda
         'vhosts': ['v.x.com'], 'trello_urls': ['https://trello.com/b/1'], 'twitter_people': ['@x'],
         'linkedin_people': ['Jane'], 'linkedin_links': ['https://linkedin.com/in/j'],
         'takeover_results': {'old.x.com': 'github-pages'}, 'future_key': ['something new']}
-counts = asyncio.run(push_records('x.com', 'crtsh', data))
+counts, stopped = asyncio.run(push_records('x.com', 'crtsh', data))
+assert not stopped
 kinds = [r['recordType'] for r in A.rows]
 for k in ['host', 'email', 'vhosts', 'trello_urls', 'twitter_people', 'linkedin_people', 'linkedin_links', 'takeover_results', 'future_key']:
     assert k in kinds, (k, kinds)
@@ -307,6 +316,47 @@ assert code == 0 and not timed_out and 'host.x.com' in out, (code, timed_out, ou
 out, code, timed_out = asyncio.run(run_theharvester([py, '-u', '-c', "import time; print('[*] Starting API endpoint scanning'); time.sleep(30)"], 2))
 assert timed_out and 'Starting API endpoint scanning' in out, (code, timed_out, out)
 print('  ✓ normal run returns full output; a hung run is killed at the limit with its output kept')
+
+print()
+print('=' * 60)
+print('TEST 13: a run cut off before report.json keeps the lists theHarvester printed')
+print('=' * 60)
+console = """[*] Target: x.com
+
+[*] Searching CRTsh.
+
+[*] IPs found: 2
+-------------------
+1.2.3.4
+5.6.7.8
+
+[*] No emails found.
+
+[*] Hosts found: 3
+---------------------
+a.x.com:1.2.3.4
+b.x.com
+a.x.com:1.2.3.4
+
+[*] Starting DNS brute force.
+
+[*] Hosts found after DNS brute force:
+c.x.com
+b.x.com
+"""
+assert parse_console(console) == {'ips': ['1.2.3.4', '5.6.7.8'], 'hosts': ['a.x.com:1.2.3.4', 'b.x.com', 'c.x.com']}, parse_console(console)
+assert parse_console('[*] Target: x.com\n[*] Searching CRTsh.\n') == {}
+print('  ✓ hosts, brute-forced hosts and IPs are read back, deduplicated; nothing listed gives {}')
+
+print()
+print('=' * 60)
+print('TEST 14: pushing stops at the spending limit and says how far it got')
+print('=' * 60)
+A.rows.clear(); A.charging.left = 2
+counts, stopped = asyncio.run(push_records('x.com', 'crtsh', {'hosts': ['a.x.com', 'b.x.com', 'c.x.com'], 'emails': ['e@x.com']}))
+assert stopped and counts['hosts'] == 2 and counts['emails'] == 0 and len(A.rows) == 2, (stopped, counts, len(A.rows))
+A.charging.left = None
+print('  ✓ 2 of 4 rows pushed and counted, then stopped')
 
 print()
 print('ALL UNIT TESTS PASS ✓')

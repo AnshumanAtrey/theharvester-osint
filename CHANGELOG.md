@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.23] - 2026-10-29
+
+### Fixed
+- A run cut off by its time limit during DNS brute force failed with nothing delivered, although theHarvester had already listed its hosts (it writes report.json only after brute force, and its Ctrl+C handler writes nothing). The hosts, IPs, emails and other lists it printed are now read back from its console output and delivered with a note; the run fails only when the cut came before anything was listed. Reproduced: gmail.com with brute force against an unanswering DNS server, 44 hosts listed, 0 delivered before, 44 delivered after.
+- Runs started from Apify's AI assistant could fail after finishing: SDK 3.4.1 rejects the run origin APIFY_AI when it reads back the status message. Now on Apify SDK 4, which accepts every origin.
+- A run stopped by its spending limit kept trying to push the rows the platform refused, and then reported every result as found (limit $0.50: 166 rows delivered, "Found 5101 records"). It now stops at the limit, looks up DNS only for the hosts it can deliver, and says how many of the results were delivered and how to get the rest.
+
 ## [1.1.2] - 2026-09-25
 
 ### Fixed

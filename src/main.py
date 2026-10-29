@@ -445,6 +445,51 @@ def build_command(input_data: dict) -> list:
     return cmd, sources_str
 
 
+# theHarvester prints each result list before it writes its report file: "[*] Hosts found: 112", a
+# dashed line, then one entry per line up to a blank line; later steps add "[*] Hosts found after DNS
+# brute force:" the same way. It writes report.json only after DNS brute force, takeover and DNS
+# lookup, and its Ctrl+C handler writes nothing, so a run the time limit cut off during brute force
+# lost every host it had already listed (2026-10-29: 112 hosts printed, 0 delivered, run FAILED).
+CONSOLE_LISTS = {
+    'Hosts': 'hosts', 'IPs': 'ips', 'Emails': 'emails', 'People': 'people', 'ASNS': 'asns',
+    'Interesting Urls': 'interesting_urls', 'Trello URLs': 'trello_urls', 'Twitter Users': 'twitter_people',
+    'LinkedIn Users': 'linkedin_people', 'LinkedIn Links': 'linkedin_links',
+}
+CONSOLE_HEADER = re.compile(r'^\[\*\] (.+?) found(?: after [^:]*)?:(?: \d+)?$')
+
+
+def parse_console(output: str) -> dict:
+    """The result lists theHarvester printed, keyed like its report.json (empty if it printed none)."""
+    data: dict[str, list[str]] = {}
+    key = None
+    for line in output.splitlines():
+        text = line.strip()
+        header = CONSOLE_HEADER.match(text)
+        if header:
+            key = CONSOLE_LISTS.get(header.group(1))
+        elif not text or text.startswith('['):
+            key = None
+        elif key and set(text) != {'-'} and not text.startswith('An exception has occurred'):
+            data.setdefault(key, []).append(text)
+    return {k: list(dict.fromkeys(v)) for k, v in data.items()}
+
+
+class LimitReached(Exception):
+    """The run's spending limit cannot pay for another row."""
+
+
+async def push_row(row: dict) -> None:
+    """Push one row, billed as a dataset item; raise LimitReached instead when the run's limit cannot pay it.
+
+    The platform drops rows past the limit anyway, but the run used to keep pushing them and then
+    report every row as found (limit $0.50: 166 rows delivered, "Found 5101 records", run 3oTpIj0cjrldSGAdV).
+    """
+    left = Actor.get_charging_manager().calculate_max_event_charge_count_within_limit('apify-default-dataset-item')
+    if left is not None and left < 1:
+        raise LimitReached
+    await Actor.push_data(row)
+
+
 def parse_host_entry(entry: str) -> dict:
     """theHarvester host entries look like 'sub.example.com:1.2.3.4' or just 'sub.example.com'."""
     if ':' in entry:
@@ -476,8 +521,8 @@ async def resolve_hosts(hosts: list[str], timeout: float = 3.0, concurrency: int
     return dict(zip(unique, results))
 
 
-async def push_records(domain: str, sources_str: str, data: dict) -> dict:
-    """Push individual + summary records to Apify dataset. Returns counts."""
+async def push_records(domain: str, sources_str: str, data: dict) -> tuple[dict, bool]:
+    """Push one row per result. Returns the counts pushed, and whether the spending limit stopped it."""
     timestamp = datetime.now(timezone.utc).isoformat()
     counts = {
         'hosts': 0,
@@ -490,98 +535,106 @@ async def push_records(domain: str, sources_str: str, data: dict) -> dict:
         'liveHosts': 0,
     }
 
-    # Hosts (parsed), each tagged with whether it resolves in DNS now
+    # Hosts (parsed), each tagged with whether it resolves in DNS now. Hosts go first, so only as many
+    # as the limit can pay for are looked up in DNS.
     host_entries = [(entry, parse_host_entry(entry)) for entry in data.get('hosts', []) or []]
+    payable = Actor.get_charging_manager().calculate_max_event_charge_count_within_limit('apify-default-dataset-item')
+    if payable is not None:
+        host_entries = host_entries[:payable + 1]
     live = await resolve_hosts([p['host'] for _, p in host_entries])
-    for entry, parsed in host_entries:
-        resolves = live.get(parsed['host'], False)
-        await Actor.push_data({
-            'recordType': 'host',
-            'domain': domain,
-            'host': parsed['host'],
-            'ip': parsed['ip'],
-            'resolves': resolves,
-            'raw': entry,
-            'timestamp': timestamp,
-        })
-        counts['hosts'] += 1
-        counts['liveHosts'] += resolves
+    stopped = False
+    try:
+        for entry, parsed in host_entries:
+            resolves = live.get(parsed['host'], False)
+            await push_row({
+                'recordType': 'host',
+                'domain': domain,
+                'host': parsed['host'],
+                'ip': parsed['ip'],
+                'resolves': resolves,
+                'raw': entry,
+                'timestamp': timestamp,
+            })
+            counts['hosts'] += 1
+            counts['liveHosts'] += resolves
 
-    # Emails
-    for email in data.get('emails', []) or []:
-        await Actor.push_data({
-            'recordType': 'email',
-            'domain': domain,
-            'email': email,
-            'timestamp': timestamp,
-        })
-        counts['emails'] += 1
+        # Emails
+        for email in data.get('emails', []) or []:
+            await push_row({
+                'recordType': 'email',
+                'domain': domain,
+                'email': email,
+                'timestamp': timestamp,
+            })
+            counts['emails'] += 1
 
-    # IPs
-    for ip in data.get('ips', []) or []:
-        await Actor.push_data({
-            'recordType': 'ip',
-            'domain': domain,
-            'ip': ip,
-            'timestamp': timestamp,
-        })
-        counts['ips'] += 1
+        # IPs
+        for ip in data.get('ips', []) or []:
+            await push_row({
+                'recordType': 'ip',
+                'domain': domain,
+                'ip': ip,
+                'timestamp': timestamp,
+            })
+            counts['ips'] += 1
 
-    # URLs (theHarvester key: interesting_urls)
-    for url in data.get('interesting_urls', []) or []:
-        await Actor.push_data({
-            'recordType': 'url',
-            'domain': domain,
-            'url': url,
-            'timestamp': timestamp,
-        })
-        counts['urls'] += 1
+        # URLs (theHarvester key: interesting_urls)
+        for url in data.get('interesting_urls', []) or []:
+            await push_row({
+                'recordType': 'url',
+                'domain': domain,
+                'url': url,
+                'timestamp': timestamp,
+            })
+            counts['urls'] += 1
 
-    # ASNs
-    for asn in data.get('asns', []) or []:
-        await Actor.push_data({
-            'recordType': 'asn',
-            'domain': domain,
-            'asn': asn,
-            'timestamp': timestamp,
-        })
-        counts['asns'] += 1
+        # ASNs
+        for asn in data.get('asns', []) or []:
+            await push_row({
+                'recordType': 'asn',
+                'domain': domain,
+                'asn': asn,
+                'timestamp': timestamp,
+            })
+            counts['asns'] += 1
 
-    # Shodan entries (when -s used)
-    for shodan_entry in data.get('shodan', []) or []:
-        await Actor.push_data({
-            'recordType': 'shodan',
-            'domain': domain,
-            'shodan': shodan_entry,
-            'timestamp': timestamp,
-        })
-        counts['shodan'] += 1
+        # Shodan entries (when -s used)
+        for shodan_entry in data.get('shodan', []) or []:
+            await push_row({
+                'recordType': 'shodan',
+                'domain': domain,
+                'shodan': shodan_entry,
+                'timestamp': timestamp,
+            })
+            counts['shodan'] += 1
 
-    # People (some sources return this)
-    for person in data.get('people', []) or []:
-        await Actor.push_data({
-            'recordType': 'person',
-            'domain': domain,
-            'person': person,
-            'timestamp': timestamp,
-        })
-        counts['people'] += 1
+        # People (some sources return this)
+        for person in data.get('people', []) or []:
+            await push_row({
+                'recordType': 'person',
+                'domain': domain,
+                'person': person,
+                'timestamp': timestamp,
+            })
+            counts['people'] += 1
 
-    # Everything else theHarvester reports (vhosts, trello_urls, twitter_people, linkedin_people,
-    # linkedin_links, takeover_results, and any key a later release adds), passed through under
-    # theHarvester's own key name so nothing it finds is dropped.
-    for key, value in data.items():
-        if key in HANDLED_KEYS or value in (None, [], {}, ''):
-            continue
-        entries = value.items() if isinstance(value, dict) else ((None, v) for v in (value if isinstance(value, list) else [value]))
-        for sub_key, item in entries:
-            row = {'recordType': key, 'domain': domain, 'value': item, 'timestamp': timestamp}
-            if sub_key is not None:
-                row['key'] = sub_key
-            await Actor.push_data(row)
-            counts[key] = counts.get(key, 0) + 1
+        # Everything else theHarvester reports (vhosts, trello_urls, twitter_people, linkedin_people,
+        # linkedin_links, takeover_results, and any key a later release adds), passed through under
+        # theHarvester's own key name so nothing it finds is dropped.
+        for key, value in data.items():
+            if key in HANDLED_KEYS or value in (None, [], {}, ''):
+                continue
+            entries = value.items() if isinstance(value, dict) else ((None, v) for v in (value if isinstance(value, list) else [value]))
+            for sub_key, item in entries:
+                row = {'recordType': key, 'domain': domain, 'value': item, 'timestamp': timestamp}
+                if sub_key is not None:
+                    row['key'] = sub_key
+                await push_row(row)
+                counts[key] = counts.get(key, 0) + 1
 
-    return counts
+    except LimitReached:
+        stopped = True
+    return counts, stopped
 
 
 async def run_theharvester(cmd: list[str], timeout: int) -> tuple[str, int | None, bool]:
@@ -674,22 +727,32 @@ async def main() -> None:
         Actor.log.info(f'theHarvester exit code: {returncode} ({len(output)} chars of output)')
         files = await save_files(output)
 
+        json_path = f'{OUTPUT_PREFIX}.json'
+        # Without its report file (cut off by the time limit, or a crash), the lists theHarvester
+        # printed are the results.
+        console = None if os.path.exists(json_path) else parse_console(output)
+        listed = sum(len(v) for v in (console or {}).values())
+
         if timed_out:
             last_step = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip().startswith('[')), 'unknown step')
-            if not os.path.exists(f'{OUTPUT_PREFIX}.json'):
+            if console is not None and not listed:
                 await Actor.fail(status_message=(
                     f'The search hit the {timeout}s time limit (while on: {last_step[:120]}) before any results were saved, '
                     f'so nothing was charged. Turn off the slow extra checks, pick fewer sources, or raise Time limit.'))
                 return
-            # theHarvester writes its results file before the API scan, so a run cut off late still has them.
-            notes.append(f'Time limit ({timeout}s) was reached while on: {last_step[:120]}. Results found before that are included; '
-                         f'the full output so far is in theharvester-output.txt.')
+            if console is not None:
+                notes.append(f'Time limit ({timeout}s) was reached while on: {last_step[:120]}, before theHarvester wrote its report. '
+                             f'The {listed} results it had already listed are included; the full output so far is in '
+                             f'theharvester-output.txt.')
+            else:
+                # theHarvester writes its results file before the API scan, so a run cut off late still has them.
+                notes.append(f'Time limit ({timeout}s) was reached while on: {last_step[:120]}. Results found before that are included; '
+                             f'the full output so far is in theharvester-output.txt.')
         elif returncode != 0:
             Actor.log.error(f'theHarvester exited with code {returncode}')
 
         # Parse output
-        json_path = f'{OUTPUT_PREFIX}.json'
-        if not os.path.exists(json_path):
+        if console is not None and not listed:
             Actor.log.error(f'No JSON output found at {json_path}')
             await Actor.set_status_message(
                 f'No output produced for {domain}. The domain may be unreachable, or every '
@@ -708,27 +771,35 @@ async def main() -> None:
             })
             return
 
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-        except json.JSONDecodeError as e:
-            Actor.log.error(f'Failed to parse JSON output: {e}')
-            await Actor.push_data({
-                'recordType': 'summary',
-                'domain': domain,
-                'sources': sources_str,
-                'apiKeysConfigured': api_key_count,
-                'inputNotes': notes,
-                'files': files,
-                'success': False,
-                'error': f'JSON parse failed: {e}',
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-            })
-            return
+        if console:
+            data = console
+        else:
+            try:
+                with open(json_path, 'r') as f:
+                    data = json.load(f)
+            except json.JSONDecodeError as e:
+                Actor.log.error(f'Failed to parse JSON output: {e}')
+                await Actor.push_data({
+                    'recordType': 'summary',
+                    'domain': domain,
+                    'sources': sources_str,
+                    'apiKeysConfigured': api_key_count,
+                    'inputNotes': notes,
+                    'files': files,
+                    'success': False,
+                    'error': f'JSON parse failed: {e}',
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                })
+                return
 
         # Push individual records first (helps with Apify table view + billing)
-        counts = await push_records(domain, sources_str, data)
+        counts, stopped = await push_records(domain, sources_str, data)
         total_findings = sum(v for k, v in counts.items() if k != 'liveHosts')  # liveHosts is a subset of hosts
+        if stopped:
+            found = sum(len(v) if isinstance(v, (list, dict)) else 1 for k, v in data.items() if k != 'cmd' and v)
+            limit = Actor.get_charging_manager().get_pricing_info().max_total_charge_usd
+            notes.append(f"Stopped at this run's spending limit of ${float(limit):g}: {total_findings} of the {found} results "
+                         "theHarvester found were delivered. Raise the run's maximum cost to get the rest.")
 
         # Tell the user clearly what happened. A 0-result run must NOT look identical
         # to a good one - that silent-empty case is the #1 "it gave me nothing" churn.
@@ -750,7 +821,10 @@ async def main() -> None:
                 f'{note or "Found " + str(total_findings) + " records for " + domain + "."} '
                 f'{len(notes)} input note(s): {" ".join(notes)}'[:900])
 
-        # Push summary record last
+        # Push summary record last (a run stopped by its spending limit cannot pay for it)
+        if stopped:
+            Actor.log.info(f'Results summary for {domain}: {counts}')
+            return
         await Actor.push_data({
             'recordType': 'summary',
             'domain': domain,
