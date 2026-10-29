@@ -317,6 +317,10 @@ out, code, timed_out = asyncio.run(run_theharvester([py, '-u', '-c', "import tim
 assert timed_out and 'Starting API endpoint scanning' in out, (code, timed_out, out)
 print('  ✓ normal run returns full output; a hung run is killed at the limit with its output kept')
 
+inp, notes = normalize_input({'domain': 'jane.doe@gmail.com'})
+assert inp['domain'] == 'gmail.com' and any('holehe-email-osint' in n for n in notes), notes
+print('  ✓ a typed email address maps its domain and points to Holehe for the address itself')
+
 print()
 print('=' * 60)
 print('TEST 13: a run cut off before report.json keeps the lists theHarvester printed')

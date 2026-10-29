@@ -273,7 +273,13 @@ def normalize_input(raw: dict, supported: set[str] | None = None, keyed: dict[st
     if not looks_like_domain(domain):
         raise InputError(f'"{candidates[0]}" does not look like a website. Enter just the domain, '
                          f'e.g. itm.edu - no spaces, no path.')
-    if domain != candidates[0].strip().lower():
+    if '@' in candidates[0]:
+        # Someone who types an address usually wants the address, not its mail provider's subdomains
+        # (2026-10-23 to 28: three runs searched gmail.com from a typed address and hit the time limit).
+        notes.append(f'"{candidates[0]}" is an email address, so this run maps its domain {domain}: subdomains, '
+                     f'hosts and the emails found there. To see which sites the address itself is registered on, '
+                     f'use Holehe Email OSINT: https://apify.com/anshumanatrey/holehe-email-osint')
+    elif domain != candidates[0].strip().lower():
         notes.append(f'Cleaned "{candidates[0]}" to "{domain}".')
     inp['domain'] = domain
 
