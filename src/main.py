@@ -10,6 +10,8 @@ import json
 import os
 import re
 import subprocess
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -643,14 +645,24 @@ async def push_records(domain: str, sources_str: str, data: dict) -> tuple[dict,
     return counts, stopped
 
 
-async def run_theharvester(cmd: list[str], timeout: int) -> tuple[str, int | None, bool]:
+async def run_theharvester(cmd: list[str], timeout: int, sources_share: float | None = None) -> tuple[str, int | None, bool]:
     """Run theHarvester, streaming its status lines to the log as they happen.
 
     Returns (full output, exit code, timed_out). On timeout the process is killed
     and everything it printed so far is still returned, so the caller can save it
     and use any results file already written.
+
+    theHarvester runs through src/th_entry.py, and with sources_share its source phase must end
+    by that share of the time limit: a source still searching then is stopped, so the others'
+    results are printed (and saved) instead of all of them waiting on the slowest one.
     """
-    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    env = None
+    if cmd and cmd[0] == 'theHarvester':
+        cmd = [sys.executable, '-m', 'src.th_entry', *cmd[1:]]
+        if sources_share:
+            env = {**os.environ, 'TH_SOURCES_DEADLINE': str(time.time() + sources_share * timeout)}
+    proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+                                                env=env, cwd=Path(__file__).resolve().parent.parent)
     lines: list[str] = []
 
     async def pump() -> None:
@@ -725,12 +737,19 @@ async def main() -> None:
 
         timeout = input_data['timeout']
 
+        # The source phase gets most of the time limit, less when extra checks still have to run on its hosts.
+        extras = any(input_data.get(k) for k in ('dnsLookup', 'dnsBrute', 'takeOver', 'screenshot', 'shodan',
+                                                 'apiScan', 'dnsResolve'))
         try:
-            output, returncode, timed_out = await run_theharvester(cmd, timeout)
+            output, returncode, timed_out = await run_theharvester(cmd, timeout, sources_share=0.6 if extras else 0.85)
         except FileNotFoundError as e:
             await Actor.fail(status_message=f'theHarvester binary not found: {e}')
             return
         Actor.log.info(f'theHarvester exit code: {returncode} ({len(output)} chars of output)')
+        stopped_sources = output.count('"work item": TimeoutError')
+        if stopped_sources:
+            notes.append(f'{stopped_sources} source(s) were still searching at {0.6 if extras else 0.85:.0%} of the time limit '
+                         f'and were stopped, so the results of the others could be delivered. Raise Time limit to give them longer.')
         files = await save_files(output)
 
         json_path = f'{OUTPUT_PREFIX}.json'

@@ -1,0 +1,36 @@
+{
+  "$comment": "Example tasks published on the Store by scripts/publish-tasks.mjs after every deploy (CI only). Each one is a search people type, with its own Google-indexed landing page and .md (manager/rules/SEO.md). Free sources only (no API key), and apify.com as the example: 121 subdomains on 2026-10-29, so a first run shows real results at a small cost.",
+  "options": {
+    "build": "latest",
+    "memoryMbytes": 1024,
+    "timeoutSecs": 1800
+  },
+  "tasks": [
+    {
+      "name": "subdomain-finder",
+      "title": "Subdomain finder: every subdomain of a domain, checked in DNS",
+      "description": "Find the subdomains of any domain from public sources (crt.sh, HackerTarget, RapidDNS and CertSpotter) with no API key, each one checked live in DNS, one row per subdomain. Type a domain or paste a URL; full URLs are cleaned. Add your own API keys to search the other 50 sources too.",
+      "input": {
+        "domain": "apify.com",
+        "sources": ["crtsh", "hackertarget", "rapiddns", "certspotter"]
+      },
+      "seoTitle": "Subdomain Finder - All Subdomains of a Domain",
+      "seoDescription": "Find every subdomain of a domain from crt.sh, HackerTarget, RapidDNS and CertSpotter, each checked live in DNS. No API key needed, export to CSV or JSON.",
+      "inputSchemaFields": ["domain", "sources", "limit"],
+      "datasetView": "hosts"
+    },
+    {
+      "name": "certificate-transparency-subdomain-search",
+      "title": "Certificate transparency search: subdomains from crt.sh logs",
+      "description": "List the subdomains a domain's TLS certificates name, from the certificate transparency logs of crt.sh and CertSpotter, with each name checked live in DNS. A quick way to map a company's public attack surface or find forgotten hosts.",
+      "input": {
+        "domain": "apify.com",
+        "sources": ["crtsh", "certspotter"]
+      },
+      "seoTitle": "crt.sh Subdomain Search - Certificate Transparency",
+      "seoDescription": "Subdomains from certificate transparency logs (crt.sh and CertSpotter), each checked live in DNS. Map an attack surface or find forgotten hosts.",
+      "inputSchemaFields": ["domain", "sources", "limit"],
+      "datasetView": "hosts"
+    }
+  ]
+}

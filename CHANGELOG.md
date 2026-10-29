@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.26] - 2026-10-29
+
+### Fixed
+- One slow source could lose a whole run. theHarvester waits for every selected source before it prints any result, and its own HTTP timeout is 12 minutes, so a stalled crt.sh (a default source, slow on big domains) held the run past its time limit with nothing printed to deliver. theHarvester now runs through `src/th_entry.py`, which stops any source still searching at 85% of the time limit (60% when extra checks such as DNS brute force still have to run): the other sources' results are printed and delivered, with a note naming how many were stopped. Reproduced with a fake hung crt.sh: killed at 25 s with 0 hosts before, 2 hosts delivered at 5 s after (unit TEST 15).
+
+### Changed
+- Store discounts: $0.0027 per record on Scale, $0.0024 on Business and above; Free and Starter stay at $0.003.
+- The listing is now synced from the repo by CI (`.actor/store.json`, made from the live listing; the description lost its em dash), and two example tasks are published on the Store.
+
 ## [1.1.23] - 2026-10-29
 
 ### Added

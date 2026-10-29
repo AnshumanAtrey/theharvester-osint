@@ -39,7 +39,7 @@ Honest carve-outs (for trust):
 
 PAY_PER_EVENT model:
 
-- `OSINT Record`: $0.003 - Charged per record harvested (subdomain, email, IP, URL, ASN, or summary row)
+- `OSINT Record`: $0.003 - Charged per record harvested (subdomain, email, IP, URL, ASN, or summary row); $0.0027 on Apify's Scale plan, $0.0024 on Business and above
 
 Typical costs:
 - Small domain (50 findings): $0.15

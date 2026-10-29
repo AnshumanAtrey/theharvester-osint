@@ -37,7 +37,7 @@ Pay-per-event:
 
 | Event | Price | When it fires |
 |---|---|---|
-| `OSINT Record` | $0.003 | Charged per record harvested (subdomain, email, IP, URL, ASN, or summary row) |
+| `OSINT Record` | $0.003 | Charged per record harvested (subdomain, email, IP, URL, ASN, or summary row). On paid Apify plans: $0.0027 on Scale, $0.0024 on Business and above |
 
 ### Typical scan costs
 

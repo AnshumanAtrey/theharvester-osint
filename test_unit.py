@@ -363,4 +363,35 @@ A.charging.left = None
 print('  ✓ 2 of 4 rows pushed and counted, then stopped')
 
 print()
+print('=' * 60)
+print('TEST 15: a source that never answers is stopped at the deadline, the others are listed')
+print('=' * 60)
+# Fake sources, no network: crt.sh hangs (it stalls on big domains in real life), rapiddns answers at once.
+HANG = """
+import asyncio, os, sys, tempfile
+sys.path.insert(0, os.getcwd())
+import src.th_entry
+from theHarvester.discovery import crtsh, rapiddns
+async def hang(self, proxy=False): await asyncio.sleep(600)
+async def quick(self, proxy=False): pass
+async def hosts(self): return ['a.example.com', 'b.example.com']
+crtsh.SearchCrtsh.process = hang
+rapiddns.SearchRapidDns.process = quick
+rapiddns.SearchRapidDns.get_hostnames = hosts
+from theHarvester.theHarvester import main
+sys.argv = ['theHarvester', '-d', 'example.com', '-b', 'crtsh,rapiddns', '-f', os.path.join(tempfile.mkdtemp(), 'r')]
+main()
+"""
+import subprocess, time as _time
+t0 = _time.time()
+proc = subprocess.run([sys.executable, '-u', '-c', HANG], capture_output=True, text=True, timeout=90,
+                      env={**os.environ, 'TH_SOURCES_DEADLINE': str(_time.time() + 5)})
+took = _time.time() - t0
+assert proc.returncode == 0 and took < 60, (proc.returncode, took, proc.stdout[-500:])
+listed = parse_console(proc.stdout)
+assert listed.get('hosts') == ['a.example.com', 'b.example.com'], listed
+assert '"work item": TimeoutError' in proc.stdout
+print(f'  ✓ finished in {took:.0f} s with 2 hosts from rapiddns; the hung crt.sh was stopped')
+
+print()
 print('ALL UNIT TESTS PASS ✓')

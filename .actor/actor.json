@@ -1,11 +1,12 @@
 {
     "actorSpecification": 1,
     "name": "theharvester-osint",
-    "title": "theHarvester Cloud - Email & Subdomain Finder",
-    "description": "Find the emails and subdomains tied to any domain. Type a domain (we auto-clean full URLs) and get emails, subdomains, IPs, URLs and ASNs from 54+ public sources like crt.sh, Shodan and Hunter. Clean per-record output, export to CSV or CRM. Pay only per record found.",
+    "title": "Email & Subdomain Finder - theHarvester OSINT | 54 Sources",
+    "description": "Cloud-hosted theHarvester OSINT tool. Harvest emails, subdomains, IPs, URLs and ASNs from 54+ public sources (Shodan, Censys, crt.sh, VirusTotal, SecurityTrails, GitHub, hunter.io). Full CLI feature parity: DNS brute force, subdomain takeover, screenshots. $0.003 per record harvested.",
     "version": "1.1",
     "buildTag": "latest",
     "categories": [
+        "LEAD_GENERATION",
         "DEVELOPER_TOOLS",
         "AUTOMATION"
     ],
