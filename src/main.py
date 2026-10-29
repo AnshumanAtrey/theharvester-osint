@@ -733,8 +733,8 @@ async def main() -> None:
         console = None if os.path.exists(json_path) else parse_console(output)
         listed = sum(len(v) for v in (console or {}).values())
 
+        last_step = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip().startswith('[')), 'unknown step')
         if timed_out:
-            last_step = next((ln.strip() for ln in reversed(output.splitlines()) if ln.strip().startswith('[')), 'unknown step')
             if console is not None and not listed:
                 await Actor.fail(status_message=(
                     f'The search hit the {timeout}s time limit (while on: {last_step[:120]}) before any results were saved, '
@@ -750,6 +750,14 @@ async def main() -> None:
                              f'the full output so far is in theharvester-output.txt.')
         elif returncode != 0:
             Actor.log.error(f'theHarvester exited with code {returncode}')
+            if listed:
+                # -9 without our own kill: the kernel stopped it, which in a container is the memory limit
+                # (the takeover check on 5,100 gmail.com hosts peaked at 977 MB of 1 GB, run pYrd5SmuteS06CmdW).
+                cause = (' (killed, most likely out of memory: raise the run memory or turn off the extra checks)'
+                         if returncode == -9 else '')
+                notes.append(f'theHarvester stopped with exit code {returncode}{cause} while on: {last_step[:120]}, '
+                             f'before it wrote its report. The {listed} results it had already listed are included; '
+                             f'the full output so far is in theharvester-output.txt.')
 
         # Parse output
         if console is not None and not listed:
