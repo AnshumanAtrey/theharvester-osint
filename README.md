@@ -6,6 +6,13 @@ Available as an [Apify Actor](https://apify.com/anshumanatrey/theharvester-osint
 
 ---
 
+**Use it from an AI assistant:**
+
+- **Claude** (claude.ai and the desktop app): [Add Email & Subdomain Finder to Claude](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Email%20%26%20Subdomain%20Finder&connectorUrl=https%3A%2F%2Fmcp.apify.com%3Ftools%3Danshumanatrey%2Ftheharvester-osint), click Continue, sign in to Apify, Allow, and ask in plain words.
+- **Claude Code:** `claude mcp add --transport http theharvester-osint "https://mcp.apify.com?tools=anshumanatrey/theharvester-osint"`, then run `/mcp` to sign in to Apify.
+- **Codex:** `codex mcp add theharvester-osint --url "https://mcp.apify.com?tools=anshumanatrey/theharvester-osint"`, then `codex mcp login theharvester-osint`.
+- **Any other MCP client:** `https://mcp.apify.com?tools=anshumanatrey/theharvester-osint`, signed in with Apify or an `Authorization: Bearer <APIFY_TOKEN>` header.
+
 ## What does it do?
 
 Enter a domain and get back the emails and subdomains connected to it, plus IPs, URLs and ASNs, pulled from 54+ public sources in parallel: crt.sh, HackerTarget, RapidDNS, CertSpotter, Shodan, Censys, VirusTotal, SecurityTrails, GitHub, DuckDuckGo and more. We auto-clean the domain you paste (so a full URL still works), normalize the output across sources, and return one clean dataset row per finding - ready for a CRM, a spreadsheet, or an OSINT pipeline.
