@@ -154,6 +154,7 @@ SOURCE_ALIASES = {
 BOOL_FIELDS = {'dnsLookup': False, 'dnsBrute': False, 'takeOver': False, 'screenshot': False,
                'shodan': False, 'apiScan': False, 'useProxies': False, 'quiet': True}
 DOMAIN_ALIASES = ('domain', 'domains', 'url', 'website', 'target', 'email')
+EXAMPLE_DOMAIN = 'example.com'  # the form's prefill: researched when no website is given, instead of failing
 KEY_INPUTS = {k for fields in API_KEY_FIELDS.values() for k, _ in fields}
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / '.actor' / 'INPUT_SCHEMA.json'
 
@@ -268,7 +269,11 @@ def normalize_input(raw: dict, supported: set[str] | None = None, keyed: dict[st
     value = next((raw.get(k) for k in DOMAIN_ALIASES if raw.get(k)), None)
     candidates = _split(value) if value else []
     if not candidates:
-        raise InputError('No website given. Enter just the website to research, e.g. itm.edu.')
+        # Nothing typed (a blank field passes Apify's input check): research the example instead of failing, so the
+        # run shows what it returns (owner, 2026-11-14). Billed like any run: Apify charges the rows.
+        candidates = [EXAMPLE_DOMAIN]
+        notes.append(f'No website was given, so this run researched the example {EXAMPLE_DOMAIN}. Enter your own '
+                     f'website in domain, e.g. itm.edu.')
     if len(candidates) > 1:
         notes.append(f'One website per run: used "{candidates[0]}" and skipped {len(candidates) - 1} more.')
     domain = clean_domain(candidates[0].split()[0])

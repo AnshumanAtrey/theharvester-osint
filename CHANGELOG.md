@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.27] - 2026-11-14
+
+### Changed
+- A run given no website (a blank field, which Apify's input check lets through, or an API call without `domain`) no longer fails with "No website given". It researches the example example.com, the form's prefill, and says so in the status message, so the run shows what it returns. Billed like any run. Text that was typed but is not a website still fails the run with the reason.
+
 ## [1.1.26] - 2026-10-29
 
 ### Fixed
