@@ -219,7 +219,8 @@ assert inp['domain'] == 'x.org'
 # No domain at all: the example runs instead of a failure (a blank field passes Apify's check; owner, 2026-11-14).
 for empty in [{}, {'domain': ''}, {'domain': '   '}]:
     inp, notes = normalize_input(empty, SUP, KEYED)
-    assert inp['domain'] == 'example.com' and any('the example example.com' in n for n in notes), (empty, notes)
+    assert inp['domain'] == 'example.com' and inp['limit'] == 5, (empty, inp)
+    assert any('the example example.com, 5 results per source' in n for n in notes), (empty, notes)
 
 # Unusable domain: the only hard failures.
 for bad in [{'domain': 'not a domain'}, {'domain': 'justtext'}]:
