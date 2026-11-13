@@ -155,7 +155,7 @@ BOOL_FIELDS = {'dnsLookup': False, 'dnsBrute': False, 'takeOver': False, 'screen
                'shodan': False, 'apiScan': False, 'useProxies': False, 'quiet': True}
 DOMAIN_ALIASES = ('domain', 'domains', 'url', 'website', 'target', 'email')
 EXAMPLE_DOMAIN = 'example.com'  # the form's prefill: researched when no website is given, instead of failing
-EXAMPLE_LIMIT = 5               # results per source for that example: rows are billed, and nobody asked for these
+EXAMPLE_LIMIT = 5               # results per source, and rows per kind, for that example: its rows are billed
 KEY_INPUTS = {k for fields in API_KEY_FIELDS.values() for k, _ in fields}
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / '.actor' / 'INPUT_SCHEMA.json'
 
@@ -313,6 +313,7 @@ def normalize_input(raw: dict, supported: set[str] | None = None, keyed: dict[st
 
     inp['limit'] = EXAMPLE_LIMIT if example else _as_int(raw.get('limit'), 500, 1, 10000, 'Results per source (limit)',
                                                          notes)
+    inp['_example'] = example
     inp['start'] = _as_int(raw.get('start'), 0, 0, None, 'Skip first results (start)', notes)
     inp['timeout'] = _as_int(raw.get('timeout'), 1800, 60, 3600, 'Time limit (timeout)', notes)
     for field, default in BOOL_FIELDS.items():
@@ -832,6 +833,11 @@ async def main() -> None:
                     'timestamp': datetime.now(timezone.utc).isoformat(),
                 })
                 return
+
+        if input_data.get('_example'):
+            # theHarvester's limit does not hold crt.sh to it (504 rows, run b41HuVDfHlPmbuVtJ), and the example's rows
+            # are billed though nobody asked for them: deliver the first few of each kind only.
+            data = {k: v[:EXAMPLE_LIMIT] if isinstance(v, list) else v for k, v in data.items()}
 
         # Push individual records first (helps with Apify table view + billing)
         counts, stopped = await push_records(domain, sources_str, data)
